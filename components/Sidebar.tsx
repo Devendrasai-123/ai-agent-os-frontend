@@ -1,4 +1,5 @@
 const links = [
+    { name: "Agent Workspace", href: "/agent-workspace-safe-test" },
     { name: "Chat", href: "/chat" },
     { name: "Live Agents", href: "/live-agents" },
     { name: "UI References", href: "/ui-references" },
