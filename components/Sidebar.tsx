@@ -51,6 +51,7 @@ const navGroups: NavGroup[] = [
         items: [
             { name: "Chat", href: "/chat", icon: "C" },
             { name: "Conversation", href: "/conversation", icon: "V" },
+            { name: "Git Safety", href: "/git-safety", badge: "Safe", icon: "GS" },
             { name: "Live Agents", href: "/live-agents", icon: "L" },
             { name: "Agents", href: "/agents", icon: "A" },
         ],
