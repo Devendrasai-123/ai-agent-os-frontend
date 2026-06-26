@@ -24,6 +24,7 @@ const navGroups: NavGroup[] = [
             { name: "Agent Brief", href: "/agent-brief", badge: "Idea", icon: "B" },
             { name: "Task Runner", href: "/task-runner", badge: "Run", icon: "TR" },
             { name: "Agent Assignments", href: "/agent-assignments", badge: "Flow", icon: "AA" },
+            { name: "Agent Workflow", href: "/agent-workflow", badge: "Flow", icon: "AW" },
             { name: "Project Brain", href: "/project-brain", badge: "Brain", icon: "PB" },
             { name: "Prompt Inspector", href: "/prompt-inspector", badge: "Prompt", icon: "PI" },
             { name: "Decision Reports", href: "/decision-reports", badge: "Plans", icon: "DR" },
