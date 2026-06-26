@@ -14,6 +14,7 @@ type FeatureSummary = {
 
 export default function HomePage() {
   const [liveStatus, setLiveStatus] = useState<any>(null);
+  const [outputFiles, setOutputFiles] = useState<any>(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [message, setMessage] = useState("");
   const [loadingAction, setLoadingAction] = useState("");
@@ -33,6 +34,15 @@ export default function HomePage() {
     } catch {
       setLiveStatus(null);
     }
+    try {
+      const outputResponse = await fetch(`${API_BASE}/dashboard/output-files`);
+      const outputData = await outputResponse.json();
+      setOutputFiles(outputData);
+    } catch {
+      setOutputFiles(null);
+    }
+
+
     try {
       const healthResponse = await fetch(`${API_BASE}/health`);
       const healthData = await healthResponse.json();
@@ -155,6 +165,57 @@ export default function HomePage() {
         </section>
 
         PASTE LIVE AGENT STATUS SECTION HERE
+
+        <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold">Current Output Files</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Shows current run outputs, generated pages, reports, and design files.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-cyan-500/20 px-3 py-1 text-xs font-bold text-cyan-200">
+              {outputFiles?.total_files ?? 0} files
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-4">
+            {(outputFiles?.groups || []).map((group: any) => (
+              <div
+                key={group.name}
+                className="rounded-2xl border border-white/10 bg-black/20 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-slate-100">{group.name}</h3>
+                  <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-300">
+                    {group.count}
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {group.files.length === 0 && (
+                    <p className="text-xs text-slate-500">No files yet.</p>
+                  )}
+
+                  {group.files.slice(0, 5).map((file: any) => (
+                    <div
+                      key={file.file_path}
+                      className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+                    >
+                      <p className="break-words text-xs font-semibold text-slate-200">
+                        {file.file_name}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {file.modified} · {Math.ceil(file.size / 1024)} KB
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           ...Agent Controls...
