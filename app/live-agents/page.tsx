@@ -1,4 +1,4 @@
-import { getAgentStatus } from "@/lib/api";
+﻿import { getAgentStatus } from "@/lib/api";
 import AgentToyBoard from "@/components/AgentToyBoard";
 
 export default async function LiveAgentsPage() {

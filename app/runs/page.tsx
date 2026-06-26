@@ -1,4 +1,4 @@
-import { getRuns } from "@/lib/api";
+﻿import { getRuns } from "@/lib/api";
 
 export default async function RunsPage() {
     const data = await getRuns();

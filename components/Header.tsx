@@ -1,4 +1,4 @@
-export default function Header() {
+﻿export default function Header() {
     return (
         <header className="fixed left-64 right-0 top-0 z-10 border-b border-white/10 bg-slate-950/90 px-8 py-4 text-white backdrop-blur">
             <div className="flex items-center justify-between">
@@ -16,3 +16,4 @@ export default function Header() {
         </header>
     );
 }
+

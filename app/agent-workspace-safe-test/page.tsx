@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useRef, useState } from "react";
 import Link from "next/link";
@@ -533,7 +533,7 @@ export default function AgentWorkspaceSafeTest() {
           </div>
 
           <p className="mt-2 text-center text-[10px] text-gray-600">
-            Agent Workspace Safe Test · Press Enter to send · Shift+Enter for
+            Agent Workspace Safe Test Â· Press Enter to send Â· Shift+Enter for
             new line
           </p>
         </div>

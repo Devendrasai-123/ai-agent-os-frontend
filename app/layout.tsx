@@ -1,22 +1,11 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+﻿import type { Metadata } from "next";
+import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
-  title: "AI Agent OS Dashboard",
-  description: "Local CrewAI monitoring dashboard",
+  title: "AI Agent OS",
+  description: "Local AI Agent Operating System",
 };
 
 export default function RootLayout({
@@ -25,18 +14,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-screen bg-slate-950">
-        <Sidebar />
-        <Header />
+    <html lang="en">
+      <body className="bg-[#050816] text-white">
+        <div className="flex min-h-screen overflow-hidden bg-[#050816]">
+          <Sidebar />
 
-        <main className="ml-64 pt-20">
-          {children}
-        </main>
+          <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
+            <Header />
+
+            <main className="flex-1 overflow-y-auto bg-[#050816]">
+              {children}
+            </main>
+          </div>
+        </div>
       </body>
     </html>
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import {
@@ -114,7 +114,7 @@ export default function UiReferencesPage() {
                         <h2 className="text-lg font-semibold">Upload reference</h2>
 
                         <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-black/30 px-4 py-10 text-center hover:bg-white/10">
-                            <span className="text-4xl">＋</span>
+                            <span className="text-4xl">ï¼‹</span>
                             <span className="mt-3 text-sm text-gray-300">
                                 Upload UI screenshot
                             </span>
@@ -193,7 +193,7 @@ export default function UiReferencesPage() {
                             <div>
                                 <h2 className="text-xl font-bold">Selected UI Reference</h2>
                                 <p className="mt-1 text-sm text-gray-400">
-                                    Analyze screenshot → save notes → build pages later.
+                                    Analyze screenshot â†’ save notes â†’ build pages later.
                                 </p>
                             </div>
 
@@ -239,3 +239,4 @@ export default function UiReferencesPage() {
         </main>
     );
 }
+

@@ -1,4 +1,4 @@
-import { getHealth } from "@/lib/api";
+﻿import { getHealth } from "@/lib/api";
 
 export default async function SettingsPage() {
     const health = await getHealth();

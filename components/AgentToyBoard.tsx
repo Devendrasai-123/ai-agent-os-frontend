@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -38,11 +38,11 @@ function getTaskTitle(agent: Agent) {
 
 function getMessage(agent: Agent) {
     if (agent.status === "completed") {
-        return `Done bro ✅ I completed ${getShortFileName(agent.output_file)}.`;
+        return `Done bro âœ… I completed ${getShortFileName(agent.output_file)}.`;
     }
 
     if (agent.status === "failed") {
-        return "I got an error bro ❌ Check the errors page.";
+        return "I got an error bro âŒ Check the errors page.";
     }
 
     if (agent.status === "running") {
@@ -267,7 +267,7 @@ export default function AgentToyBoard({ agents }: { agents: Agent[] }) {
                                         : "border-gray-500 bg-white/5 text-gray-400"
                                     }`}
                             >
-                                {agent.status === "completed" ? "✓" : ""}
+                                {agent.status === "completed" ? "âœ“" : ""}
                             </div>
 
                             <p className="line-clamp-2 text-sm text-gray-200">

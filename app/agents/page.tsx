@@ -1,4 +1,4 @@
-import { getAgentStatus } from "@/lib/api";
+﻿import { getAgentStatus } from "@/lib/api";
 
 export default async function AgentsPage() {
     const data = await getAgentStatus();
@@ -60,3 +60,4 @@ export default async function AgentsPage() {
         </main>
     );
 }
+

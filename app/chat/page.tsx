@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -31,74 +31,74 @@ const agents = [
   {
     id: "all",
     name: "All Agents",
-    icon: "🌐",
+    icon: "ðŸŒ",
     title: "Agent Team",
     description: "Talk to the full AI crew.",
-    character: "🤖",
+    character: "ðŸ¤–",
   },
   {
     id: "product",
     name: "Product Manager",
-    icon: "📋",
+    icon: "ðŸ“‹",
     title: "Product Manager",
     description: "Creates PRD, scope, features, and roadmap.",
-    character: "🐼",
+    character: "ðŸ¼",
   },
   {
     id: "ui",
     name: "UI/UX Designer",
-    icon: "🎨",
+    icon: "ðŸŽ¨",
     title: "UI/UX Designer",
     description: "Designs pages, layout, user flow, and visual system.",
-    character: "🦊",
+    character: "ðŸ¦Š",
   },
   {
     id: "frontend",
     name: "Frontend Developer",
-    icon: "💻",
+    icon: "ðŸ’»",
     title: "Frontend Developer",
     description: "Builds Next.js screens and components.",
-    character: "🐵",
+    character: "ðŸµ",
   },
   {
     id: "backend",
     name: "Backend Developer",
-    icon: "🔧",
+    icon: "ðŸ”§",
     title: "Backend Developer",
     description: "Builds APIs, backend logic, and server routes.",
-    character: "🐺",
+    character: "ðŸº",
   },
   {
     id: "database",
     name: "Database Engineer",
-    icon: "🗄️",
+    icon: "ðŸ—„ï¸",
     title: "Database Engineer",
     description: "Designs SQLite/Supabase schema and storage.",
-    character: "🦉",
+    character: "ðŸ¦‰",
   },
   {
     id: "architect",
     name: "System Architect",
-    icon: "🏗️",
+    icon: "ðŸ—ï¸",
     title: "System Architect",
     description: "Plans full system architecture and integration.",
-    character: "🦁",
+    character: "ðŸ¦",
   },
   {
     id: "qa",
     name: "QA Tester",
-    icon: "🧪",
+    icon: "ðŸ§ª",
     title: "QA Tester",
     description: "Finds bugs, tests flows, and validates outputs.",
-    character: "🐸",
+    character: "ðŸ¸",
   },
   {
     id: "reviewer",
     name: "Project Reviewer",
-    icon: "✅",
+    icon: "âœ…",
     title: "Project Reviewer",
     description: "Reviews final output and creates improvement notes.",
-    character: "🐯",
+    character: "ðŸ¯",
   },
 ];
 
@@ -391,23 +391,23 @@ export default function AgentChatPage() {
             onClick={startNewChat}
             className="w-full rounded-xl px-3 py-2 text-left hover:bg-white/10"
           >
-            💬 New chat
+            ðŸ’¬ New chat
           </button>
 
           <button className="w-full rounded-xl px-3 py-2 text-left hover:bg-white/10">
-            🔍 Search chats
+            ðŸ” Search chats
           </button>
 
           <button className="w-full rounded-xl px-3 py-2 text-left hover:bg-white/10">
-            📚 Prompt Library
+            ðŸ“š Prompt Library
           </button>
 
           <button className="w-full rounded-xl px-3 py-2 text-left hover:bg-white/10">
-            📁 Projects
+            ðŸ“ Projects
           </button>
 
           <button className="w-full rounded-xl px-3 py-2 text-left hover:bg-white/10">
-            ⏰ Scheduled
+            â° Scheduled
           </button>
         </div>
 
@@ -422,7 +422,7 @@ export default function AgentChatPage() {
                 key={folder}
                 className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
               >
-                📂 {folder}
+                ðŸ“‚ {folder}
               </button>
             ))}
           </div>
@@ -474,7 +474,7 @@ export default function AgentChatPage() {
                   >
                     <div className="truncate text-white">{chat.title}</div>
                     <div className="truncate text-xs text-gray-500">
-                      {chat.agent} · {chat.model}
+                      {chat.agent} Â· {chat.model}
                     </div>
                   </button>
 
@@ -484,7 +484,7 @@ export default function AgentChatPage() {
                     }
                     className="absolute right-2 top-2 rounded-md px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white"
                   >
-                    ⋯
+                    â‹¯
                   </button>
 
                   {openMenuId === chat.id && (
@@ -519,7 +519,7 @@ export default function AgentChatPage() {
             <h2 className="text-xl font-bold">Agent Chat</h2>
 
             <p className="text-sm text-gray-400">
-              Agent: {selectedAgent.name} · API: {provider} · Model: {model}
+              Agent: {selectedAgent.name} Â· API: {provider} Â· Model: {model}
             </p>
 
             {currentSessionId && (
@@ -615,7 +615,7 @@ export default function AgentChatPage() {
 
                     {msg.fileName && (
                       <p className="mt-3 rounded-xl bg-black/30 px-3 py-2 text-sm text-gray-300">
-                        📎 {msg.fileName}
+                        ðŸ“Ž {msg.fileName}
                       </p>
                     )}
                   </div>
@@ -627,14 +627,14 @@ export default function AgentChatPage() {
                         className="hover:text-white"
                         title="Copy"
                       >
-                        ⧉
+                        â§‰
                       </button>
 
                       <button
                         className="hover:text-white"
                         title="Upload / share later"
                       >
-                        ⇧
+                        â‡§
                       </button>
 
                       <button
@@ -642,11 +642,11 @@ export default function AgentChatPage() {
                         className="hover:text-white"
                         title="Rethink"
                       >
-                        ↻
+                        â†»
                       </button>
 
                       <button className="hover:text-white" title="More">
-                        ⋯
+                        â‹¯
                       </button>
                     </div>
                   )}
@@ -713,7 +713,7 @@ export default function AgentChatPage() {
               disabled={isSending || isUploadingFile}
               className="flex h-12 w-full items-center justify-center rounded-full bg-orange-600 text-2xl font-bold text-white hover:bg-orange-500 disabled:opacity-50 md:w-12"
             >
-              ➜
+              âžœ
             </button>
           </div>
 
@@ -721,7 +721,7 @@ export default function AgentChatPage() {
             <p className="mx-auto mt-2 max-w-5xl text-sm text-gray-400">
               {isUploadingFile
                 ? `Uploading: ${fileName || "file"}...`
-                : `Attached: ${fileName}${fileContent ? " · text extracted" : ""}`}
+                : `Attached: ${fileName}${fileContent ? " Â· text extracted" : ""}`}
             </p>
           )}
         </div>
@@ -729,3 +729,4 @@ export default function AgentChatPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { getCurrentOutputs } from "@/lib/api";
+﻿import { getCurrentOutputs } from "@/lib/api";
 
 export default async function OutputsPage() {
     const data = await getCurrentOutputs();
