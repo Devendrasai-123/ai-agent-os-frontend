@@ -1,4 +1,5 @@
-﻿"use client";
+
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -16,40 +17,41 @@ export default function WorkflowReportsPage() {
   const [reports, setReports] = useState<WorkflowReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<WorkflowReport | null>(null);
   const [message, setMessage] = useState("");
-  const [updatedAt, setUpdatedAt] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const loadReports = async () => {
+  async function loadReports() {
     try {
       setLoading(true);
       setMessage("");
 
-      const response = await fetch(`${API_BASE}/agent-workflow/reports`);
+      const response = await fetch(API_BASE + "/agent-workflow/reports");
       const data = await response.json();
 
       if (!data.ok) {
         setMessage(data.message || data.error || "Failed to load reports.");
         setReports([]);
+        setSelectedReport(null);
         return;
       }
 
-      setReports(data.items || []);
-      setSelectedReport(data.items?.[0] || null);
-      setUpdatedAt(data.updated_at || "");
+      const items = data.items || [];
+      setReports(items);
+      setSelectedReport(items[0] || null);
     } catch {
       setMessage("Backend not reachable. Start FastAPI on port 8000.");
       setReports([]);
+      setSelectedReport(null);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const generateReport = async () => {
+  async function generateReport() {
     try {
       setLoading(true);
       setMessage("");
 
-      const response = await fetch(`${API_BASE}/agent-workflow/report`, {
+      const response = await fetch(API_BASE + "/agent-workflow/report", {
         method: "POST",
       });
 
@@ -60,143 +62,110 @@ export default function WorkflowReportsPage() {
         return;
       }
 
-      setMessage(`Generated report: ${data.file_name}`);
+      setMessage("Generated report: " + data.file_name);
       await loadReports();
     } catch {
       setMessage("Could not generate report. Check backend terminal.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const copyPreview = async () => {
-    if (!selectedReport?.preview) return;
+  async function copyPreview() {
+    if (!selectedReport || !selectedReport.preview) return;
     await navigator.clipboard.writeText(selectedReport.preview);
     setMessage("Report preview copied.");
-  };
+  }
 
   useEffect(() => {
     loadReports();
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050816] px-8 pb-8 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-600/20 via-white/[0.04] to-violet-500/10 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-300">
-                Workflow Reports
-              </p>
-              <h1 className="mt-2 text-3xl font-black">
-                Save Agent Workflow as Reports
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-400">
-                Generate readable markdown reports from the latest PM → UI/UX → Frontend → Backend → QA workflow.
-              </p>
-            </div>
+    <main style={{ minHeight: "100vh", background: "#050816", color: "white", padding: "32px" }}>
+      <section style={{ border: "1px solid #263044", borderRadius: "24px", padding: "24px", marginBottom: "24px" }}>
+        <p style={{ color: "#34d399", fontWeight: 800, letterSpacing: "2px", fontSize: "12px" }}>
+          WORKFLOW REPORTS
+        </p>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={loadReports}
-                disabled={loading}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
-              >
-                {loading ? "Loading..." : "Refresh"}
-              </button>
+        <h1 style={{ fontSize: "32px", fontWeight: 900, marginTop: "8px" }}>
+          Save Agent Workflow as Reports
+        </h1>
 
-              <button
-                onClick={generateReport}
-                disabled={loading}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:opacity-50"
-              >
-                Generate Report
-              </button>
-            </div>
-          </div>
+        <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+          Generate readable markdown reports from the latest workflow.
+        </p>
+
+        <div style={{ display: "flex", gap: "12px", marginTop: "20px", flexWrap: "wrap" }}>
+          <button onClick={loadReports} disabled={loading} style={{ padding: "12px 16px", borderRadius: "12px" }}>
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+
+          <button onClick={generateReport} disabled={loading} style={{ padding: "12px 16px", borderRadius: "12px" }}>
+            Generate Report
+          </button>
+
+          <button onClick={copyPreview} disabled={!selectedReport} style={{ padding: "12px 16px", borderRadius: "12px" }}>
+            Copy Preview
+          </button>
+        </div>
+      </section>
+
+      {message && (
+        <section style={{ border: "1px solid #065f46", borderRadius: "16px", padding: "16px", marginBottom: "24px", color: "#a7f3d0" }}>
+          {message}
         </section>
+      )}
 
-        {message && (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            {message}
-          </div>
-        )}
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "24px" }}>
+        <div style={{ border: "1px solid #263044", borderRadius: "24px", padding: "24px" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Saved Reports</h2>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-slate-400">Reports</p>
-            <p className="mt-2 text-3xl font-black text-emerald-300">
-              {reports.length}
-            </p>
-          </div>
+          <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+            Total reports: {reports.length}
+          </p>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-slate-400">Selected</p>
-            <p className="mt-2 break-words text-xs font-bold text-slate-100">
-              {selectedReport?.file_name || "No report selected"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm text-slate-400">Updated</p>
-            <p className="mt-2 text-sm font-bold text-slate-100">
-              {updatedAt || "Not loaded"}
-            </p>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-            <h2 className="text-xl font-bold">Saved Reports</h2>
-
-            <div className="mt-5 space-y-3">
-              {reports.map((report) => (
-                <button
-                  key={report.file_name}
-                  onClick={() => setSelectedReport(report)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedReport?.file_name === report.file_name
-                      ? "border-emerald-500/60 bg-emerald-500/10"
-                      : "border-white/10 bg-black/20 hover:bg-white/[0.06]"
-                  }`}
-                >
-                  <p className="break-words text-sm font-bold text-slate-100">
-                    {report.file_name}
-                  </p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {report.modified} · {report.size_kb} KB
-                  </p>
-                </button>
-              ))}
-
-              {reports.length === 0 && (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                  No workflow reports yet. Click Generate Report.
+          <div style={{ marginTop: "20px", display: "grid", gap: "12px" }}>
+            {reports.map((report) => (
+              <button
+                key={report.file_name}
+                onClick={() => setSelectedReport(report)}
+                style={{
+                  textAlign: "left",
+                  padding: "14px",
+                  borderRadius: "14px",
+                  border: selectedReport?.file_name === report.file_name ? "1px solid #10b981" : "1px solid #263044",
+                  background: selectedReport?.file_name === report.file_name ? "#064e3b" : "#0b1020",
+                  color: "white",
+                }}
+              >
+                <strong>{report.file_name}</strong>
+                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+                  {report.modified} ? {report.size_kb} KB
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-bold">Report Preview</h2>
-
-              <button
-                onClick={copyPreview}
-                disabled={!selectedReport}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
-              >
-                Copy Preview
               </button>
-            </div>
+            ))}
 
-            <pre className="mt-5 max-h-[75vh] overflow-y-auto whitespace-pre-wrap break-words rounded-2xl border border-white/10 bg-black/40 p-5 font-mono text-xs leading-6 text-slate-300">
-              {selectedReport?.preview || "No report selected."2xl border border-white/10 bg-black/40 p-5 font-mono text-xs leading-6 text-slate-300">
-              {selectedReport?.preview || "No report selected."}
-            </pre>
+            {reports.length === 0 && (
+              <p style={{ color: "#94a3b8" }}>
+                No workflow reports yet. Click Generate Report.
+              </p>
+            )}
           </div>
-        </section>
-      </div>
-    </div>
+        </div>
+
+        <div style={{ border: "1px solid #263044", borderRadius: "24px", padding: "24px" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Report Preview</h2>
+
+          <p style={{ color: "#94a3b8", marginTop: "8px", marginBottom: "16px" }}>
+            Selected: {selectedReport?.file_name || "No report selected"}
+          </p>
+
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", background: "#020617", border: "1px solid #263044", borderRadius: "16px", padding: "16px", maxHeight: "70vh", overflow: "auto", fontSize: "12px", lineHeight: "20px" }}>
+            {selectedReport?.preview || "No report selected."}
+          </pre>
+        </div>
+      </section>
+    </main>
   );
 }
