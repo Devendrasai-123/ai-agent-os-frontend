@@ -36,6 +36,7 @@ const navGroups: NavGroup[] = [
         title: "Build",
         items: [
             { name: "Page Builder", href: "/page-builder", icon: "P" },
+            { name: "Workflow Report", href: "/workflow-report", badge: "Report", icon: "WR" },
             { name: "Safe Install", href: "/safe-install", badge: "Safe", icon: "SI" },
             { name: "Generated Outputs", href: "/generated", icon: "G" },
             { name: "UI References", href: "/ui-references", icon: "U" },
