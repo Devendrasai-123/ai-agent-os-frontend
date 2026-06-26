@@ -1,185 +1,355 @@
 ﻿"use client";
 
-import { useState } from "react";
-import { generatePageCode } from "@/lib/api";
+import { useEffect, useState } from "react";
+
+const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
 
 export default function PageBuilderPage() {
-    const [pageName, setPageName] = useState("ai_chat_dashboard");
-    const [routePath, setRoutePath] = useState("/chat");
-    const [description, setDescription] = useState(
-        "Build a modern AI chat dashboard page using my saved UI reference analysis. It should have a left sidebar, recent chats, main chat area, model selector, file upload area, message bubbles, copy button, rethink button, and dark premium styling."
-    );
-    const [model, setModel] = useState("moonshotai/kimi-k2.6");
-    const [loading, setLoading] = useState(false);
+    const [builderContext, setBuilderContext] = useState<any>(null);
+    const [pageName, setPageName] = useState("");
+    const [targetRoute, setTargetRoute] = useState("");
+    const [pagePrompt, setPagePrompt] = useState("");
+    const [uiStyle, setUiStyle] = useState("");
+    const [generatedResult, setGeneratedResult] = useState<any>(null);
     const [message, setMessage] = useState("");
-    const [code, setCode] = useState("");
-    const [savedFile, setSavedFile] = useState("");
+    const [loadingContext, setLoadingContext] = useState(false);
+    const [generating, setGenerating] = useState(false);
+    const [installing, setInstalling] = useState(false);
 
-    async function handleGenerate() {
-        if (!pageName.trim() || !description.trim()) {
-            setMessage("Page name and description are required.");
-            return;
-        }
-
-        setLoading(true);
-        setMessage("");
-        setCode("");
-        setSavedFile("");
-
+    const loadBuilderContext = async () => {
         try {
-            const result = await generatePageCode({
-                page_name: pageName,
-                route_path: routePath,
-                description,
-                model,
-            });
+            setLoadingContext(true);
+            setMessage("");
 
-            if (!result.ok) {
-                setMessage(result.message || "Page generation failed.");
+            const response = await fetch(`${API_BASE}/page-builder/context`);
+            const data = await response.json();
+
+            if (!data.ok) {
+                setMessage(data.message || data.error || "Failed to load builder context.");
+                setBuilderContext(null);
                 return;
             }
 
-            setMessage("Page generated successfully.");
-            setCode(result.code || "");
-            setSavedFile(result.saved_file || "");
+            setBuilderContext(data);
         } catch {
-            setMessage("Failed to generate page. Check backend and NVIDIA API.");
+            setMessage("Backend not reachable. Start FastAPI on port 8000.");
+            setBuilderContext(null);
         } finally {
-            setLoading(false);
+            setLoadingContext(false);
         }
-    }
+    };
 
-    async function copyCode() {
-        if (!code) return;
-        await navigator.clipboard.writeText(code);
-        setMessage("Code copied.");
-    }
+    const generatePage = async () => {
+        if (!pageName.trim()) {
+            setMessage("Enter a page name first.");
+            return;
+        }
+
+        if (!targetRoute.trim()) {
+            setMessage("Enter a target route first. Example: /health-dashboard");
+            return;
+        }
+
+        if (!pagePrompt.trim()) {
+            setMessage("Enter what this page should build.");
+            return;
+        }
+
+        try {
+            setGenerating(true);
+            setMessage("");
+            setGeneratedResult(null);
+
+            const response = await fetch(`${API_BASE}/builder/generate-page`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    page_name: pageName.trim(),
+                    target_route: targetRoute.trim(),
+                    route: targetRoute.trim(),
+                    prompt: pagePrompt.trim(),
+                    description: pagePrompt.trim(),
+                    ui_style: uiStyle.trim(),
+                    use_project_brain: true,
+                    save_to_memory: true,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!data.ok) {
+                setMessage(data.message || data.error || "Page generation failed.");
+                setGeneratedResult(data);
+                return;
+            }
+
+            setGeneratedResult(data);
+            setMessage("Page generated. Check output before installing.");
+        } catch {
+            setMessage("Generate failed. Check backend terminal.");
+        } finally {
+            setGenerating(false);
+        }
+    };
+
+    const installGeneratedPage = async () => {
+        const generatedFile =
+            generatedResult?.file_name ||
+            generatedResult?.generated_file_name ||
+            generatedResult?.output_file ||
+            generatedResult?.page_file;
+
+        if (!generatedFile) {
+            setMessage("No generated file found from generation result.");
+            return;
+        }
+
+        const approved = window.confirm(
+            "Install generated page? Safer option is to use Safe Install page for preview, backup, and rollback."
+        );
+
+        if (!approved) return;
+
+        try {
+            setInstalling(true);
+            setMessage("");
+
+            const response = await fetch(`${API_BASE}/builder/install-page`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    generated_file_name: generatedFile,
+                    target_route: targetRoute.trim(),
+                    route: targetRoute.trim(),
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!data.ok) {
+                setMessage(data.message || data.error || "Install failed.");
+                return;
+            }
+
+            setMessage("Generated page installed.");
+        } catch {
+            setMessage("Install failed. Use Safe Install page or check backend terminal.");
+        } finally {
+            setInstalling(false);
+        }
+    };
+
+    const loadStarterPrompt = () => {
+        setPageName("health_dashboard");
+        setTargetRoute("/health-dashboard");
+        setPagePrompt(
+            "Build a clean health dashboard page for Devendra's personal AI health tracker. It should show recovery, sleep, steps, workouts, food, water, body progress, and AI recommendations. Keep it safe, modern, dark theme, card-based, and mobile-friendly."
+        );
+        setUiStyle(
+            "Dark futuristic dashboard, glass cards, rounded corners, cyan/violet accents, clean spacing, premium AI control center look."
+        );
+    };
+
+    useEffect(() => {
+        loadBuilderContext();
+    }, []);
 
     return (
-        <main className="min-h-screen bg-slate-950 px-6 py-6 text-white">
-            <div className="mx-auto max-w-7xl">
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold">Page Builder</h1>
-                    <p className="mt-2 text-gray-400">
-                        Generate React + Tailwind pages using your saved UI memory and reference analysis.
-                    </p>
-                </div>
+        <div className="min-h-screen bg-[#050816] px-8 pb-8 text-white">
+            <div className="mx-auto max-w-7xl space-y-6">
+                <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/20 via-white/[0.04] to-cyan-500/10 p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">
+                                Page Builder
+                            </p>
+                            <h1 className="mt-2 text-3xl font-black">
+                                Build pages with Project Brain context
+                            </h1>
+                            <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                                This builder checks Project Brain, UI style memory, page plans, and feature registry before generating pages.
+                            </p>
+                        </div>
 
-                <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-                    <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                        <h2 className="text-xl font-semibold">Generate New Page</h2>
+                        <button
+                            onClick={loadStarterPrompt}
+                            className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                        >
+                            Load Example
+                        </button>
+                    </div>
+                </section>
 
-                        <div className="mt-5 space-y-4">
-                            <div>
-                                <label className="text-sm text-gray-300">Page name</label>
-                                <input
-                                    value={pageName}
-                                    onChange={(e) => setPageName(e.target.value)}
-                                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                    placeholder="ai_chat_dashboard"
-                                />
-                            </div>
+                {message && (
+                    <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-200">
+                        {message}
+                    </div>
+                )}
 
-                            <div>
-                                <label className="text-sm text-gray-300">Route path</label>
-                                <input
-                                    value={routePath}
-                                    onChange={(e) => setRoutePath(e.target.value)}
-                                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                    placeholder="/chat"
-                                />
-                            </div>
+                <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold">Project Brain Context</h2>
+                            <p className="mt-1 text-sm text-slate-400">
+                                Confirms whether Page Builder can read Project Brain and planning memory.
+                            </p>
+                        </div>
 
-                            <div>
-                                <label className="text-sm text-gray-300">Model</label>
-                                <select
-                                    value={model}
-                                    onChange={(e) => setModel(e.target.value)}
-                                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                >
-                                    <option value="moonshotai/kimi-k2.6">
-                                        moonshotai/kimi-k2.6
-                                    </option>
-                                    <option value="z-ai/glm-5.1">z-ai/glm-5.1</option>
-                                    <option value="meta/llama-3.1-70b-instruct">
-                                        meta/llama-3.1-70b-instruct
-                                    </option>
-                                </select>
-                            </div>
+                        <button
+                            onClick={loadBuilderContext}
+                            className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                        >
+                            {loadingContext ? "Loading..." : "Refresh Context"}
+                        </button>
+                    </div>
 
-                            <div>
-                                <label className="text-sm text-gray-300">Description</label>
-                                <textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="mt-2 h-56 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-blue-500"
-                                    placeholder="Tell AI what page to build..."
-                                />
-                            </div>
+                    <div className="mt-5 grid gap-4 md:grid-cols-4">
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-xs text-slate-500">Project Brain</p>
+                            <p className="mt-2 text-lg font-bold text-cyan-300">
+                                {builderContext?.project_brain_exists ? "Found" : "Missing"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {builderContext?.project_brain_chars ?? 0} chars
+                            </p>
+                        </div>
 
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-xs text-slate-500">UI Style Memory</p>
+                            <p className="mt-2 text-lg font-bold text-violet-300">
+                                {builderContext?.ui_style_chars ?? 0}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">chars</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-xs text-slate-500">Page Plan Memory</p>
+                            <p className="mt-2 text-lg font-bold text-emerald-300">
+                                {builderContext?.page_plan_chars ?? 0}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">chars</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-xs text-slate-500">Feature Registry</p>
+                            <p className="mt-2 text-lg font-bold text-amber-300">
+                                {builderContext?.feature_registry_chars ?? 0}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">chars</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-black/40 p-5">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                            Project Brain Preview
+                        </p>
+
+                        <pre className="mt-3 max-h-[260px] overflow-y-auto whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-300">
+                            {builderContext?.project_brain_preview ||
+                                "No Project Brain content loaded."}
+                        </pre>
+                    </div>
+                </section>
+
+                <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+                        <h2 className="text-xl font-bold">Generate Page</h2>
+
+                        <div>
+                            <label className="text-sm font-semibold text-slate-300">
+                                Page name
+                            </label>
+                            <input
+                                value={pageName}
+                                onChange={(event) => setPageName(event.target.value)}
+                                placeholder="health_dashboard"
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B0F19] px-4 py-3 text-sm outline-none focus:border-violet-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold text-slate-300">
+                                Target route
+                            </label>
+                            <input
+                                value={targetRoute}
+                                onChange={(event) => setTargetRoute(event.target.value)}
+                                placeholder="/health-dashboard"
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B0F19] px-4 py-3 text-sm outline-none focus:border-violet-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold text-slate-300">
+                                Page prompt
+                            </label>
+                            <textarea
+                                value={pagePrompt}
+                                onChange={(event) => setPagePrompt(event.target.value)}
+                                rows={8}
+                                placeholder="Describe what the page should build..."
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B0F19] px-4 py-3 text-sm outline-none focus:border-violet-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold text-slate-300">
+                                UI style
+                            </label>
+                            <textarea
+                                value={uiStyle}
+                                onChange={(event) => setUiStyle(event.target.value)}
+                                rows={4}
+                                placeholder="Dark dashboard, clean cards, cyan/violet accents..."
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B0F19] px-4 py-3 text-sm outline-none focus:border-violet-500"
+                            />
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
                             <button
-                                onClick={handleGenerate}
-                                disabled={loading}
-                                className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                                onClick={generatePage}
+                                disabled={generating}
+                                className="rounded-2xl bg-violet-600 px-5 py-4 text-sm font-bold hover:bg-violet-500 disabled:opacity-50"
                             >
-                                {loading ? "Generating..." : "Generate Page"}
+                                {generating ? "Generating..." : "Generate Page"}
                             </button>
 
-                            {message && (
-                                <p className="rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-gray-300">
-                                    {message}
-                                </p>
-                            )}
-
-                            {savedFile && (
-                                <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-200">
-                                    Saved file:
-                                    <br />
-                                    <span className="break-all">{savedFile}</span>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <h2 className="text-xl font-semibold">Generated Code</h2>
-                                <p className="mt-1 text-sm text-gray-400">
-                                    Code is also saved in generated/pages.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={copyCode}
-                                    disabled={!code}
-                                    className="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-200 hover:bg-white/10 disabled:opacity-50"
-                                >
-                                    Copy Code
-                                </button>
-
-                                <a
-                                    href="/generated"
-                                    className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-                                >
-                                    Open Generated
-                                </a>
-                            </div>
+                            <button
+                                onClick={installGeneratedPage}
+                                disabled={installing || !generatedResult}
+                                className="rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold hover:bg-emerald-500 disabled:opacity-50"
+                            >
+                                {installing ? "Installing..." : "Install Generated"}
+                            </button>
                         </div>
 
-                        {code ? (
-                            <pre className="max-h-[720px] overflow-auto rounded-2xl border border-white/10 bg-black/50 p-5 text-sm leading-6 text-gray-200">
-                                {code}
-                            </pre>
-                        ) : (
-                            <div className="flex min-h-[520px] items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-center text-gray-400">
-                                Generated TSX code will appear here.
-                            </div>
-                        )}
-                    </section>
-                </div>
+                        <p className="text-xs leading-6 text-slate-500">
+                            Safer workflow: generate first, then use Safe Install page for compare, approval, backup, and rollback.
+                        </p>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+                        <h2 className="text-xl font-bold">Generation Result</h2>
+
+                        <div className="mt-5 max-h-[75vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-5">
+                            {generatedResult ? (
+                                <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-300">
+                                    {JSON.stringify(generatedResult, null, 2)}
+                                </pre>
+                            ) : (
+                                <p className="text-sm text-slate-400">
+                                    Generate a page to see the backend result here.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </section>
             </div>
-        </main>
+        </div>
     );
 }
