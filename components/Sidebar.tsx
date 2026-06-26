@@ -52,6 +52,7 @@ const navGroups: NavGroup[] = [
             { name: "Chat", href: "/chat", icon: "C" },
             { name: "Conversation", href: "/conversation", icon: "V" },
             { name: "Git Safety", href: "/git-safety", badge: "Safe", icon: "GS" },
+            { name: "Command Center", href: "/command-center", badge: "Cmd", icon: "CC" },
             { name: "Live Agents", href: "/live-agents", icon: "L" },
             { name: "Agents", href: "/agents", icon: "A" },
         ],
