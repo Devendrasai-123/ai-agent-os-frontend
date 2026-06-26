@@ -21,6 +21,7 @@ const navGroups: NavGroup[] = [
         title: "Control",
         items: [
             { name: "Dashboard / Run Agents", href: "/", badge: "Main", icon: "D" },
+            { name: "Recent Activity", href: "/activity", badge: "Log", icon: "RA" },
             { name: "Agent Brief", href: "/agent-brief", badge: "Idea", icon: "B" },
             { name: "Task Runner", href: "/task-runner", badge: "Run", icon: "TR" },
             { name: "Agent Assignments", href: "/agent-assignments", badge: "Flow", icon: "AA" },
