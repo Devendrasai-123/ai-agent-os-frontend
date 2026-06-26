@@ -27,6 +27,7 @@ const navGroups: NavGroup[] = [
             { name: "Agent Assignments", href: "/agent-assignments", badge: "Flow", icon: "AA" },
             { name: "Agent Workflow", href: "/agent-workflow", badge: "Flow", icon: "AW" },
             { name: "Project Brain", href: "/project-brain", badge: "Brain", icon: "PB" },
+            { name: "Project Snapshot", href: "/project-snapshot", badge: "Export", icon: "PS" },
             { name: "Prompt Inspector", href: "/prompt-inspector", badge: "Prompt", icon: "PI" },
             { name: "Decision Reports", href: "/decision-reports", badge: "Plans", icon: "DR" },
             { name: "Agent Workspace", href: "/agent-workspace-safe-test", icon: "W" },
