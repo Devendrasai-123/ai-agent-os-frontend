@@ -216,6 +216,45 @@ export default function RealAgentsPage() {
     }
   }
 
+
+  async function runProjectReviewer() {
+    setRunning("reviewer");
+    setMessage("");
+    setSelectedReport("");
+
+    try {
+      const res = await fetch(`${API_BASE}/real-agents/project-reviewer/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          task,
+          feature_name: featureName,
+          priority,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.report) {
+        setSelectedReport(data.report || "");
+      }
+
+      if (data.ok) {
+        setMessage(data.approved ? "Project Reviewer approved this feature." : "Project Reviewer did not approve yet. Check missing items.");
+      } else {
+        setMessage(data.message || "Project Reviewer Agent failed.");
+      }
+
+      await loadOutputs();
+    } catch (error) {
+      setMessage("Backend not running or Project Reviewer route not available.");
+    } finally {
+      setRunning("");
+    }
+  }
+
   async function openReport(fileName: string) {
     setMessage("");
 
@@ -355,6 +394,14 @@ export default function RealAgentsPage() {
                 style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#14532d", color: "white", border: "1px solid #86efac" }}
               >
                 {running === "qa" ? "QA Running..." : "Run QA Tester"}
+              </button>
+
+              <button
+                onClick={runProjectReviewer}
+                disabled={!!running}
+                style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#172554", color: "white", border: "1px solid #818cf8" }}
+              >
+                {running === "reviewer" ? "Reviewer Running..." : "Run Project Reviewer"}
               </button>
             </div>
           </section>
