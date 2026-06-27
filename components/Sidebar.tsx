@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
   { name: "Generated Files", href: "/generated-files", badge: "Files", icon: "GF" },
   { name: "QA Runner", href: "/qa-runner", badge: "QA", icon: "QA" },
   { name: "Retry Failed", href: "/retry-failed", badge: "Retry", icon: "RF" },
+  { name: "Agent Permissions", href: "/agent-permissions", badge: "Safe", icon: "AP" },
             { name: "Live Agents", href: "/live-agents", icon: "L" },
             { name: "Agents", href: "/agents", icon: "A" },
         ],
