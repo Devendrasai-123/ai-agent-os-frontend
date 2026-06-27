@@ -175,6 +175,47 @@ export default function RealAgentsPage() {
     }
   }
 
+
+  async function runQATester() {
+    setRunning("qa");
+    setMessage("");
+    setSelectedReport("");
+
+    try {
+      const res = await fetch(`${API_BASE}/real-agents/qa-tester/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          task,
+          feature_name: featureName,
+          priority,
+          run_frontend_build: true,
+          run_backend_compile: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.report) {
+        setSelectedReport(data.report || "");
+      }
+
+      if (data.ok) {
+        setMessage("QA Tester Agent passed.");
+      } else {
+        setMessage(data.message || "QA Tester Agent found errors.");
+      }
+
+      await loadOutputs();
+    } catch (error) {
+      setMessage("Backend not running or QA Tester route not available.");
+    } finally {
+      setRunning("");
+    }
+  }
+
   async function openReport(fileName: string) {
     setMessage("");
 
@@ -306,6 +347,14 @@ export default function RealAgentsPage() {
                 style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#7c2d12", color: "white", border: "1px solid #fb923c" }}
               >
                 {running === "backend" ? "Backend Running..." : "Run Backend Developer"}
+              </button>
+
+              <button
+                onClick={runQATester}
+                disabled={!!running}
+                style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#14532d", color: "white", border: "1px solid #86efac" }}
+              >
+                {running === "qa" ? "QA Running..." : "Run QA Tester"}
               </button>
             </div>
           </section>
