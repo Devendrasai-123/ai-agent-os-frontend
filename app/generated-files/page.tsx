@@ -31,23 +31,28 @@ export default function GeneratedFilesPage() {
   const [selectedFileName, setSelectedFileName] = useState("");
   const [selectedContent, setSelectedContent] = useState("");
   const [routePath, setRoutePath] = useState("generated-health-dashboard");
-  const [installPlan, setInstallPlan] = useState<any>(null);
+  const [preview, setPreview] = useState<any>(null);
+  const [approval, setApproval] = useState("");
+  const [history, setHistory] = useState<any[]>([]);
   const [message, setMessage] = useState("");
 
   async function loadData() {
     setMessage("");
 
     try {
-      const [filesRes, statsRes] = await Promise.all([
+      const [filesRes, statsRes, historyRes] = await Promise.all([
         fetch(`${API_BASE}/agent-file-writer/files`),
         fetch(`${API_BASE}/agent-file-writer/stats`),
+        fetch(`${API_BASE}/generated-files/safe-install-history`),
       ]);
 
       const filesData = await filesRes.json();
       const statsData = await statsRes.json();
+      const historyData = await historyRes.json();
 
       if (filesData.ok) setFiles(filesData.files || []);
       if (statsData.ok) setStats(statsData);
+      if (historyData.ok) setHistory(historyData.history || []);
     } catch (error) {
       setMessage("Backend not running or routes not available.");
     }
@@ -56,7 +61,8 @@ export default function GeneratedFilesPage() {
   async function openFile(name: string) {
     setSelectedFileName(name);
     setSelectedContent("");
-    setInstallPlan(null);
+    setPreview(null);
+    setApproval("");
     setMessage("");
 
     try {
@@ -96,7 +102,8 @@ export default function GeneratedFilesPage() {
         if (selectedFileName === name) {
           setSelectedFileName("");
           setSelectedContent("");
-          setInstallPlan(null);
+          setPreview(null);
+          setApproval("");
         }
         await loadData();
       } else {
@@ -107,17 +114,18 @@ export default function GeneratedFilesPage() {
     }
   }
 
-  async function createInstallPlan() {
+  async function previewSafeInstall() {
     if (!selectedFileName) {
-      setMessage("Select a file first.");
+      setMessage("Select a generated file first.");
       return;
     }
 
     setMessage("");
-    setInstallPlan(null);
+    setPreview(null);
+    setApproval("");
 
     try {
-      const res = await fetch(`${API_BASE}/agent-file-writer/install-plan`, {
+      const res = await fetch(`${API_BASE}/generated-files/safe-install-preview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -131,10 +139,45 @@ export default function GeneratedFilesPage() {
       const data = await res.json();
 
       if (data.ok) {
-        setInstallPlan(data);
-        setMessage("Install plan created.");
+        setPreview(data);
+        setMessage("Safe install preview ready.");
       } else {
-        setMessage(data.message || "Failed to create install plan.");
+        setMessage(data.message || "Preview failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or route not available.");
+    }
+  }
+
+  async function approveInstall() {
+    if (!preview) {
+      setMessage("Create preview first.");
+      return;
+    }
+
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_BASE}/generated-files/safe-install-approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          file_name: selectedFileName,
+          route_path: routePath,
+          approval,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage(`Installed safely. Open: ${data.open_url}`);
+        setApproval("");
+        await loadData();
+      } else {
+        setMessage(data.message || "Install failed.");
       }
     } catch (error) {
       setMessage("Backend not running or route not available.");
@@ -149,15 +192,15 @@ export default function GeneratedFilesPage() {
     <main style={{ minHeight: "100vh", background: "#050816", color: "white", padding: "32px" }}>
       <section style={{ border: "1px solid #263044", borderRadius: "24px", padding: "24px", marginBottom: "24px" }}>
         <p style={{ color: "#38bdf8", fontWeight: 800, letterSpacing: "2px", fontSize: "12px" }}>
-          GENERATED FILE LIBRARY
+          GENERATED FILE LIBRARY + SAFE INSTALL
         </p>
 
         <h1 style={{ fontSize: "32px", fontWeight: 900, marginTop: "8px" }}>
-          Manage Agent-Created Files
+          Install Agent-Created Files Safely
         </h1>
 
         <p style={{ color: "#94a3b8", marginTop: "8px" }}>
-          Open, copy, delete, and prepare generated files for Safe Install.
+          Select a generated file, preview the diff, approve install, and create a real Next.js route.
         </p>
       </section>
 
@@ -179,10 +222,8 @@ export default function GeneratedFilesPage() {
         </div>
 
         <div style={{ border: "1px solid #263044", borderRadius: "18px", padding: "18px" }}>
-          <p style={{ color: "#94a3b8" }}>Latest</p>
-          <h2 style={{ fontSize: "16px", fontWeight: 800, marginTop: "8px" }}>
-            {stats?.latest_file?.file_name || "No file yet"}
-          </h2>
+          <p style={{ color: "#94a3b8" }}>Installs</p>
+          <h2 style={{ fontSize: "30px", fontWeight: 900 }}>{history.length}</h2>
         </div>
       </section>
 
@@ -253,7 +294,7 @@ export default function GeneratedFilesPage() {
                 color: "#cbd5e1",
                 fontSize: "12px",
                 lineHeight: "20px",
-                minHeight: "260px",
+                minHeight: "220px",
               }}
             >
               {selectedContent || "Select a generated file to preview it."}
@@ -261,10 +302,10 @@ export default function GeneratedFilesPage() {
           </section>
 
           <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Install Plan</h2>
+            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Safe Install Bridge</h2>
 
             <p style={{ color: "#94a3b8", marginTop: "8px" }}>
-              This does not install yet. It only prepares the target route and diff for review.
+              This installs selected generated code into your frontend route after approval.
             </p>
 
             <label style={{ display: "block", marginTop: "16px", color: "#94a3b8" }}>Target route</label>
@@ -274,15 +315,17 @@ export default function GeneratedFilesPage() {
               style={{ width: "100%", padding: "12px", marginTop: "6px", borderRadius: "10px", background: "#020617", color: "white", border: "1px solid #263044" }}
             />
 
-            <button onClick={createInstallPlan} disabled={!selectedFileName} style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "10px", fontWeight: 800 }}>
-              Create Install Plan
-            </button>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "16px" }}>
+              <button onClick={previewSafeInstall} disabled={!selectedFileName} style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 800 }}>
+                Preview Safe Install
+              </button>
+            </div>
 
-            {installPlan && (
+            {preview && (
               <div style={{ marginTop: "18px" }}>
-                <p style={{ color: "#a5f3fc" }}>Target: {installPlan.target_path}</p>
-                <p style={{ color: installPlan.target_exists ? "#facc15" : "#86efac", marginTop: "6px" }}>
-                  {installPlan.target_exists ? "Target page already exists." : "New target page will be created."}
+                <p style={{ color: "#a5f3fc" }}>Target: {preview.target_path}</p>
+                <p style={{ color: preview.target_exists ? "#facc15" : "#86efac", marginTop: "6px" }}>
+                  {preview.target_exists ? "Target page already exists. Backup will be created." : "New target page will be created."}
                 </p>
 
                 <pre
@@ -297,14 +340,50 @@ export default function GeneratedFilesPage() {
                     color: "#cbd5e1",
                     fontSize: "12px",
                     lineHeight: "20px",
-                    maxHeight: "360px",
+                    maxHeight: "320px",
                     overflow: "auto",
                   }}
                 >
-                  {(installPlan.diff || []).join("\n") || "No diff. New file or same content."}
+                  {(preview.diff || []).join("\n") || "No diff. New file or same content."}
                 </pre>
+
+                <label style={{ display: "block", marginTop: "16px", color: "#fca5a5", fontWeight: 800 }}>
+                  Type APPROVE INSTALL
+                </label>
+
+                <input
+                  value={approval}
+                  onChange={(e) => setApproval(e.target.value)}
+                  placeholder="APPROVE INSTALL"
+                  style={{ width: "100%", padding: "12px", marginTop: "6px", borderRadius: "10px", background: "#020617", color: "white", border: "1px solid #7f1d1d" }}
+                />
+
+                <button
+                  onClick={approveInstall}
+                  disabled={approval !== "APPROVE INSTALL"}
+                  style={{ marginTop: "14px", padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#7f1d1d", color: "white", border: "1px solid #ef4444" }}
+                >
+                  Approve Safe Install
+                </button>
               </div>
             )}
+          </section>
+
+          <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Install History</h2>
+
+            <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+              {history.length === 0 && <p style={{ color: "#94a3b8" }}>No installs yet.</p>}
+
+              {history.slice(0, 5).map((item, index) => (
+                <div key={index} style={{ border: "1px solid #263044", borderRadius: "14px", padding: "12px", background: "#0b1020" }}>
+                  <div style={{ fontWeight: 800 }}>{item.route_path}</div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                    {item.source_file} ? {item.installed_at}
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </section>
