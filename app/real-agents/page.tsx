@@ -11,6 +11,7 @@ export default function RealAgentsPage() {
   const [priority, setPriority] = useState("High");
   const [style, setStyle] = useState("Dark AI dashboard");
   const [routeName, setRouteName] = useState("generated-feature");
+  const [apiRoute, setApiRoute] = useState("generated-backend-feature");
   const [task, setTask] = useState("Create a safe permission system so agents can only use approved tools.");
   const [outputs, setOutputs] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState("");
@@ -138,6 +139,42 @@ export default function RealAgentsPage() {
     }
   }
 
+
+  async function runBackendDeveloper() {
+    setRunning("backend");
+    setMessage("");
+    setSelectedReport("");
+
+    try {
+      const res = await fetch(`${API_BASE}/real-agents/backend-developer/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          task,
+          feature_name: featureName,
+          api_route: apiRoute,
+          priority,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage(`Backend Developer Agent created: ${data.output.generated_file}`);
+        setSelectedReport(data.report || "");
+        await loadOutputs();
+      } else {
+        setMessage(data.message || "Backend Developer Agent failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or Backend Developer route not available.");
+    } finally {
+      setRunning("");
+    }
+  }
+
   async function openReport(fileName: string) {
     setMessage("");
 
@@ -223,6 +260,13 @@ export default function RealAgentsPage() {
               style={{ width: "100%", padding: "12px", marginTop: "6px", borderRadius: "10px", background: "#020617", color: "white", border: "1px solid #263044" }}
             />
 
+            <label style={{ display: "block", marginTop: "16px", color: "#94a3b8" }}>Backend API route</label>
+            <input
+              value={apiRoute}
+              onChange={(e) => setApiRoute(e.target.value)}
+              style={{ width: "100%", padding: "12px", marginTop: "6px", borderRadius: "10px", background: "#020617", color: "white", border: "1px solid #263044" }}
+            />
+
             <label style={{ display: "block", marginTop: "16px", color: "#94a3b8" }}>Task / idea</label>
             <textarea
               value={task}
@@ -254,6 +298,14 @@ export default function RealAgentsPage() {
                 style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#581c87", color: "white", border: "1px solid #c084fc" }}
               >
                 {running === "frontend" ? "Frontend Running..." : "Run Frontend Developer"}
+              </button>
+
+              <button
+                onClick={runBackendDeveloper}
+                disabled={!!running}
+                style={{ padding: "12px 16px", borderRadius: "10px", fontWeight: 900, background: "#7c2d12", color: "white", border: "1px solid #fb923c" }}
+              >
+                {running === "backend" ? "Backend Running..." : "Run Backend Developer"}
               </button>
             </div>
           </section>
