@@ -16,6 +16,9 @@ export default function AgentChainRunnerPage() {
   const [runQa, setRunQa] = useState(true);
   const [history, setHistory] = useState<any[]>([]);
   const [selectedRun, setSelectedRun] = useState<any>(null);
+  const [latestFrontendFile, setLatestFrontendFile] = useState("");
+  const [installPreview, setInstallPreview] = useState<any>(null);
+  const [approvalText, setApprovalText] = useState("");
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
 
@@ -59,6 +62,7 @@ export default function AgentChainRunnerPage() {
       if (data.ok) {
         setMessage(data.approved ? "Agent chain completed and approved." : "Agent chain completed but not approved.");
         setSelectedRun(data.run);
+        setLatestFrontendFile(findFrontendFile(data.run));
         await loadHistory();
       } else {
         setMessage(data.message || "Agent chain failed.");
@@ -70,8 +74,98 @@ export default function AgentChainRunnerPage() {
     }
   }
 
+
+  function findFrontendFile(run: any) {
+    if (!run || !run.steps) return "";
+    const found = run.steps.find((step: any) => String(step.file || "").endsWith(".tsx"));
+    return found?.file || "";
+  }
+
+  async function loadLatestRun() {
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/latest`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setLatestFrontendFile(data.frontend_file || "");
+        if (data.latest_run) {
+          setSelectedRun(data.latest_run);
+        }
+      }
+    } catch (error) {
+      // keep quiet because history still works
+    }
+  }
+
+  async function previewSafeInstall() {
+    setMessage("");
+    setInstallPreview(null);
+
+    const fileName = latestFrontendFile || findFrontendFile(selectedRun);
+
+    if (!fileName) {
+      setMessage("No generated frontend .tsx file found from latest chain run.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/safe-install-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_name: fileName,
+          target_route: frontendRoute,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setInstallPreview(data);
+        setMessage("Safe install preview created.");
+      } else {
+        setMessage(data.message || "Safe install preview failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or safe install preview route not available.");
+    }
+  }
+
+  async function approveSafeInstall() {
+    setMessage("");
+
+    if (!installPreview) {
+      setMessage("Create preview first.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/safe-install-approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_name: installPreview.source_file,
+          target_route: installPreview.target_route,
+          approval_text: approvalText,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage("Chain generated page installed safely.");
+        setApprovalText("");
+      } else {
+        setMessage(data.message || "Safe install approval failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or safe install approval route not available.");
+    }
+  }
+
   useEffect(() => {
     loadHistory();
+    loadLatestRun();
   }, []);
 
   return (
@@ -135,6 +229,55 @@ export default function AgentChainRunnerPage() {
             >
               {running ? "Running Full Chain..." : "Run Full Agent Chain"}
             </button>
+          </section>
+
+
+          <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Safe Install Latest Frontend Draft</h2>
+
+            <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+              Generated file: {latestFrontendFile || findFrontendFile(selectedRun) || "No generated .tsx file yet"}
+            </p>
+
+            <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+              Target route: /{frontendRoute}
+            </p>
+
+            <button
+              onClick={previewSafeInstall}
+              style={{ marginTop: "14px", padding: "12px 14px", borderRadius: "10px", fontWeight: 900, background: "#1e3a8a", color: "white", border: "1px solid #60a5fa", width: "100%" }}
+            >
+              Preview Safe Install
+            </button>
+
+            {installPreview && (
+              <div style={{ marginTop: "16px", border: "1px solid #263044", borderRadius: "14px", padding: "14px", background: "#020617" }}>
+                <p style={{ color: "#86efac", fontWeight: 900 }}>Preview Ready</p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+                  Target: {installPreview.target_path}
+                </p>
+                <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+                  Old lines: {installPreview.preview?.old_line_count} ? New lines: {installPreview.preview?.new_line_count}
+                </p>
+
+                <label style={{ display: "block", marginTop: "12px", color: "#94a3b8" }}>
+                  Type APPROVE CHAIN INSTALL
+                </label>
+
+                <input
+                  value={approvalText}
+                  onChange={(e) => setApprovalText(e.target.value)}
+                  style={inputStyle}
+                />
+
+                <button
+                  onClick={approveSafeInstall}
+                  style={{ marginTop: "12px", padding: "12px 14px", borderRadius: "10px", fontWeight: 900, background: "#14532d", color: "white", border: "1px solid #86efac", width: "100%" }}
+                >
+                  Approve Install
+                </button>
+              </div>
+            )}
           </section>
 
           <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
