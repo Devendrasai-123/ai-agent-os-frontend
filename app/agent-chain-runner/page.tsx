@@ -27,6 +27,8 @@ export default function AgentChainRunnerPage() {
   const [rollbackText, setRollbackText] = useState("");
   const [rollbackResult, setRollbackResult] = useState<any>(null);
   const [rollbackRunning, setRollbackRunning] = useState(false);
+  const [registrySyncResult, setRegistrySyncResult] = useState<any>(null);
+  const [registrySyncRunning, setRegistrySyncRunning] = useState(false);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -220,6 +222,43 @@ export default function AgentChainRunnerPage() {
     }
   }
 
+
+
+  async function syncFeatureRegistry() {
+    setRegistrySyncRunning(true);
+    setMessage("");
+    setRegistrySyncResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/sync-feature-registry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          target_route: frontendRoute,
+          backend_route: backendRoute,
+          priority,
+          status: selectedRun?.status || "built",
+          note: "Updated from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setRegistrySyncResult(data.feature);
+        setMessage(data.message || "Feature Registry updated.");
+      } else {
+        setMessage(data.message || "Feature Registry sync failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or Feature Registry sync route not available.");
+    } finally {
+      setRegistrySyncRunning(false);
+    }
+  }
 
   async function rollbackLastInstall() {
     setRollbackRunning(true);
@@ -455,6 +494,34 @@ export default function AgentChainRunnerPage() {
                   )}
                 </div>
 
+              </div>
+            )}
+          </section>
+
+
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Feature Registry Sync</h2>
+
+            <p style={mutedTextStyle}>
+              Save this chain result into Feature Registry with route, QA status, install status, rollback status, and generated files.
+            </p>
+
+            <button
+              onClick={syncFeatureRegistry}
+              disabled={registrySyncRunning}
+              style={registryButtonStyle}
+            >
+              {registrySyncRunning ? "Updating Registry..." : "Update Feature Registry"}
+            </button>
+
+            {registrySyncResult && (
+              <div style={innerPanelStyle}>
+                <p style={successTextStyle}>Feature Registry Updated</p>
+                <p style={smallMutedStyle}>Feature: {registrySyncResult.feature_name || registrySyncResult.name}</p>
+                <p style={smallMutedStyle}>Status: {registrySyncResult.status}</p>
+                <p style={smallMutedStyle}>Frontend: {registrySyncResult.frontend_route}</p>
+                <p style={smallMutedStyle}>QA: {registrySyncResult.qa_status}</p>
+                <p style={smallMutedStyle}>Install: {registrySyncResult.install_status}</p>
               </div>
             )}
           </section>
@@ -780,6 +847,19 @@ const rollbackButtonStyle: CSSProperties = {
   background: "#7f1d1d",
   color: "white",
   border: "1px solid #fca5a5",
+  width: "100%"
+};
+
+
+
+const registryButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#164e63",
+  color: "white",
+  border: "1px solid #67e8f9",
   width: "100%"
 };
 
