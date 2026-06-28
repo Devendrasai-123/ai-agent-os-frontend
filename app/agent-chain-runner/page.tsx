@@ -42,6 +42,9 @@ export default function AgentChainRunnerPage() {
   const [liveTimeline, setLiveTimeline] = useState<any[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineGeneratedAt, setTimelineGeneratedAt] = useState("");
+  const [liveTimeline, setLiveTimeline] = useState<any[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineGeneratedAt, setTimelineGeneratedAt] = useState("");
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
