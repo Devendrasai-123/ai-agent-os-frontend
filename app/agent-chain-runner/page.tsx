@@ -31,6 +31,8 @@ export default function AgentChainRunnerPage() {
   const [registrySyncRunning, setRegistrySyncRunning] = useState(false);
   const [projectBrainSyncResult, setProjectBrainSyncResult] = useState<any>(null);
   const [projectBrainSyncRunning, setProjectBrainSyncRunning] = useState(false);
+  const [handoffResult, setHandoffResult] = useState<any>(null);
+  const [handoffRunning, setHandoffRunning] = useState(false);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -226,6 +228,56 @@ export default function AgentChainRunnerPage() {
 
 
 
+
+
+  async function exportNewChatHandoff() {
+    setHandoffRunning(true);
+    setMessage("");
+    setHandoffResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/export-handoff`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          target_route: frontendRoute,
+          backend_route: backendRoute,
+          next_task: "Continue building the next AI Agent OS feature step by step.",
+          note: "Exported from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setHandoffResult(data);
+        setMessage(data.message || "New chat handoff exported.");
+      } else {
+        setMessage(data.message || "Handoff export failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or handoff export route not available.");
+    } finally {
+      setHandoffRunning(false);
+    }
+  }
+
+  async function copyHandoffToClipboard() {
+    if (!handoffResult?.handoff) {
+      setMessage("No handoff text to copy yet.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(handoffResult.handoff);
+      setMessage("Handoff copied. Paste it into a new chat.");
+    } catch (error) {
+      setMessage("Could not copy automatically. Select and copy the handoff text manually.");
+    }
+  }
 
   async function syncProjectBrain() {
     setProjectBrainSyncRunning(true);
@@ -537,6 +589,44 @@ export default function AgentChainRunnerPage() {
           </section>
 
 
+
+
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>New Chat Handoff Export</h2>
+
+            <p style={mutedTextStyle}>
+              Export a clean handoff file so a new ChatGPT chat can continue this project without losing exact context.
+            </p>
+
+            <button
+              onClick={exportNewChatHandoff}
+              disabled={handoffRunning}
+              style={handoffButtonStyle}
+            >
+              {handoffRunning ? "Exporting Handoff..." : "Export New Chat Handoff"}
+            </button>
+
+            {handoffResult && (
+              <div style={innerPanelStyle}>
+                <p style={successTextStyle}>Handoff Exported</p>
+                <p style={smallMutedStyle}>File: {handoffResult.handoff_file}</p>
+
+                <button
+                  onClick={copyHandoffToClipboard}
+                  style={copyButtonStyle}
+                >
+                  Copy Handoff Text
+                </button>
+
+                <textarea
+                  value={handoffResult.handoff || ""}
+                  readOnly
+                  rows={12}
+                  style={handoffTextAreaStyle}
+                />
+              </div>
+            )}
+          </section>
 
           <section style={cardStyle}>
             <h2 style={sectionTitleStyle}>Project Brain Sync</h2>
@@ -938,5 +1028,41 @@ const projectBrainButtonStyle: CSSProperties = {
   color: "white",
   border: "1px solid #a5b4fc",
   width: "100%"
+};
+
+
+
+const handoffButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#713f12",
+  color: "white",
+  border: "1px solid #facc15",
+  width: "100%"
+};
+
+const copyButtonStyle: CSSProperties = {
+  marginTop: "12px",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#0f172a",
+  color: "white",
+  border: "1px solid #64748b",
+  width: "100%"
+};
+
+const handoffTextAreaStyle: CSSProperties = {
+  width: "100%",
+  marginTop: "12px",
+  minHeight: "260px",
+  padding: "12px",
+  borderRadius: "12px",
+  background: "#020617",
+  color: "#cbd5e1",
+  border: "1px solid #263044",
+  fontSize: "12px"
 };
 
