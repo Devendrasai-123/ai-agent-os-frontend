@@ -36,6 +36,9 @@ export default function AgentChainRunnerPage() {
   const [completeFlowApproval, setCompleteFlowApproval] = useState("");
   const [completeFlowRunning, setCompleteFlowRunning] = useState(false);
   const [completeFlowResult, setCompleteFlowResult] = useState<any>(null);
+  const [safeFlowApproval, setSafeFlowApproval] = useState("");
+  const [safeFlowRunning, setSafeFlowRunning] = useState(false);
+  const [safeFlowResult, setSafeFlowResult] = useState<any>(null);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -233,6 +236,51 @@ export default function AgentChainRunnerPage() {
 
 
 
+
+
+  async function runSafeCompleteFlow() {
+    setSafeFlowRunning(true);
+    setMessage("");
+    setSafeFlowResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/complete-flow-safe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          task,
+          priority,
+          style,
+          frontend_route: frontendRoute,
+          backend_route: backendRoute,
+          approval_text: safeFlowApproval,
+          run_chain_qa: false,
+          auto_rollback_on_qa_fail: true,
+          note: "Started from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setSafeFlowResult(data.flow);
+        setSelectedRun(data.flow);
+        setLatestFrontendFile(data.flow?.generated_frontend_file || "");
+        setMessage(data.message || "Safe complete flow finished.");
+        await loadHistory();
+      } else {
+        setSafeFlowResult(data.flow || data);
+        setMessage(data.message || "Safe complete flow failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or safe complete flow route not available.");
+    } finally {
+      setSafeFlowRunning(false);
+    }
+  }
 
   async function runOneClickCompleteFlow() {
     setCompleteFlowRunning(true);
@@ -456,6 +504,61 @@ export default function AgentChainRunnerPage() {
 
       <section style={gridStyle}>
         <div style={leftColumnStyle}>
+
+
+          <section style={safeFlowCardStyle}>
+            <h2 style={sectionTitleStyle}>Safe Complete Flow v2</h2>
+
+            <p style={mutedTextStyle}>
+              Runs the complete flow and automatically rolls back if QA fails after install.
+            </p>
+
+            <label style={labelStyle}>Type APPROVE SAFE FULL FLOW</label>
+
+            <input
+              value={safeFlowApproval}
+              onChange={(event) => setSafeFlowApproval(event.target.value)}
+              style={inputStyle}
+            />
+
+            <button
+              onClick={runSafeCompleteFlow}
+              disabled={safeFlowRunning}
+              style={safeFlowButtonStyle}
+            >
+              {safeFlowRunning ? "Running Safe Flow..." : "Run Safe Complete Flow v2"}
+            </button>
+
+            {safeFlowResult && (
+              <div style={innerPanelStyle}>
+                <p style={safeFlowResult.qa_passed ? successTextStyle : dangerTextStyle}>
+                  Status: {safeFlowResult.status || "attention_required"}
+                </p>
+
+                <p style={smallMutedStyle}>
+                  Generated file: {safeFlowResult.generated_frontend_file || "none"}
+                </p>
+
+                <p style={smallMutedStyle}>
+                  QA passed: {String(safeFlowResult.qa_passed)}
+                </p>
+
+                <p style={smallMutedStyle}>
+                  Rollback: {safeFlowResult.rollback_status || "unknown"}
+                </p>
+
+                <div style={stepsListStyle}>
+                  {(safeFlowResult.steps || []).map((step: any, index: number) => (
+                    <div key={index} style={stepCardStyle}>
+                      <div style={{ fontWeight: 900 }}>{step.step}</div>
+                      <div style={smallMutedStyle}>OK: {String(step.ok)}</div>
+                      <div style={smallMutedStyle}>{step.message || "No message"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
 
           <section style={completeFlowCardStyle}>
             <h2 style={sectionTitleStyle}>One Click Complete Flow</h2>
@@ -1185,6 +1288,26 @@ const completeFlowButtonStyle: CSSProperties = {
   background: "#854d0e",
   color: "white",
   border: "1px solid #facc15",
+  width: "100%"
+};
+
+
+
+const safeFlowCardStyle: CSSProperties = {
+  border: "1px solid #22c55e",
+  borderRadius: "20px",
+  padding: "20px",
+  background: "#03120a"
+};
+
+const safeFlowButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "14px 18px",
+  borderRadius: "12px",
+  fontWeight: 900,
+  background: "#14532d",
+  color: "white",
+  border: "1px solid #86efac",
   width: "100%"
 };
 
