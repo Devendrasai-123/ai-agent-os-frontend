@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
   { name: "Retry Failed", href: "/retry-failed", badge: "Retry", icon: "RF" },
   { name: "Agent Permissions", href: "/agent-permissions", badge: "Safe", icon: "AP" },
   { name: "Real Agents", href: "/real-agents", badge: "AI", icon: "RA" },
+  { name: "Agent Chain Runner", href: "/agent-chain-runner", badge: "Chain", icon: "AC" },
             { name: "Live Agents", href: "/live-agents", icon: "L" },
             { name: "Agents", href: "/agents", icon: "A" },
         ],
