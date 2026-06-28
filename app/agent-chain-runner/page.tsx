@@ -24,6 +24,9 @@ export default function AgentChainRunnerPage() {
   const [approvalText, setApprovalText] = useState("");
   const [installQaResult, setInstallQaResult] = useState<any>(null);
   const [installQaRunning, setInstallQaRunning] = useState(false);
+  const [rollbackText, setRollbackText] = useState("");
+  const [rollbackResult, setRollbackResult] = useState<any>(null);
+  const [rollbackRunning, setRollbackRunning] = useState(false);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -217,6 +220,41 @@ export default function AgentChainRunnerPage() {
     }
   }
 
+
+  async function rollbackLastInstall() {
+    setRollbackRunning(true);
+    setMessage("");
+    setRollbackResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/rollback-last-install`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          target_route: frontendRoute,
+          approval_text: rollbackText,
+          reason: "Rollback from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setRollbackResult(data.rollback);
+        setMessage(data.message || "Rollback completed.");
+        setRollbackText("");
+      } else {
+        setMessage(data.message || "Rollback failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or rollback route not available.");
+    } finally {
+      setRollbackRunning(false);
+    }
+  }
+
   useEffect(() => {
     loadHistory();
     loadLatestRun();
@@ -383,6 +421,40 @@ export default function AgentChainRunnerPage() {
                     )}
                   </div>
                 )}
+
+
+                <div style={rollbackPanelStyle}>
+                  <p style={dangerTextStyle}>Rollback Last Chain Install</p>
+
+                  <p style={smallMutedStyle}>
+                    Use this if QA fails after install. It restores the previous backup for /{frontendRoute}.
+                  </p>
+
+                  <label style={labelStyle}>Type ROLLBACK CHAIN INSTALL</label>
+
+                  <input
+                    value={rollbackText}
+                    onChange={(event) => setRollbackText(event.target.value)}
+                    style={inputStyle}
+                  />
+
+                  <button
+                    onClick={rollbackLastInstall}
+                    disabled={rollbackRunning}
+                    style={rollbackButtonStyle}
+                  >
+                    {rollbackRunning ? "Rolling Back..." : "Rollback Last Chain Install"}
+                  </button>
+
+                  {rollbackResult && (
+                    <div style={qaResultStyle}>
+                      <p style={successTextStyle}>Rollback completed</p>
+                      <p style={smallMutedStyle}>Restored: {rollbackResult.target_path}</p>
+                      <p style={smallMutedStyle}>Backup: {rollbackResult.backup_path}</p>
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
           </section>
@@ -685,3 +757,29 @@ const stepCardStyle: CSSProperties = {
   padding: "14px",
   background: "#020617"
 };
+
+
+const rollbackPanelStyle: CSSProperties = {
+  marginTop: "14px",
+  border: "1px solid #7f1d1d",
+  borderRadius: "14px",
+  padding: "14px",
+  background: "#12060a"
+};
+
+const dangerTextStyle: CSSProperties = {
+  color: "#fca5a5",
+  fontWeight: 900
+};
+
+const rollbackButtonStyle: CSSProperties = {
+  marginTop: "12px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#7f1d1d",
+  color: "white",
+  border: "1px solid #fca5a5",
+  width: "100%"
+};
+
