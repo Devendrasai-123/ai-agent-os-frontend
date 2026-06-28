@@ -33,6 +33,9 @@ export default function AgentChainRunnerPage() {
   const [projectBrainSyncRunning, setProjectBrainSyncRunning] = useState(false);
   const [handoffResult, setHandoffResult] = useState<any>(null);
   const [handoffRunning, setHandoffRunning] = useState(false);
+  const [completeFlowApproval, setCompleteFlowApproval] = useState("");
+  const [completeFlowRunning, setCompleteFlowRunning] = useState(false);
+  const [completeFlowResult, setCompleteFlowResult] = useState<any>(null);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -230,6 +233,50 @@ export default function AgentChainRunnerPage() {
 
 
 
+
+  async function runOneClickCompleteFlow() {
+    setCompleteFlowRunning(true);
+    setMessage("");
+    setCompleteFlowResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/complete-flow`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          task,
+          priority,
+          style,
+          frontend_route: frontendRoute,
+          backend_route: backendRoute,
+          approval_text: completeFlowApproval,
+          run_chain_qa: false,
+          note: "Started from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setCompleteFlowResult(data.flow);
+        setSelectedRun(data.flow);
+        setLatestFrontendFile(data.flow?.generated_frontend_file || "");
+        setMessage(data.message || "One click complete flow finished.");
+        await loadHistory();
+      } else {
+        setCompleteFlowResult(data.flow || data);
+        setMessage(data.message || "One click complete flow failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or complete flow route not available.");
+    } finally {
+      setCompleteFlowRunning(false);
+    }
+  }
+
   async function exportNewChatHandoff() {
     setHandoffRunning(true);
     setMessage("");
@@ -409,6 +456,61 @@ export default function AgentChainRunnerPage() {
 
       <section style={gridStyle}>
         <div style={leftColumnStyle}>
+
+          <section style={completeFlowCardStyle}>
+            <h2 style={sectionTitleStyle}>One Click Complete Flow</h2>
+
+            <p style={mutedTextStyle}>
+              Runs chain, safe install, QA after install, Feature Registry sync, Project Brain sync, and Handoff export in one flow.
+            </p>
+
+            <label style={labelStyle}>Type APPROVE FULL CHAIN FLOW</label>
+
+            <input
+              value={completeFlowApproval}
+              onChange={(event) => setCompleteFlowApproval(event.target.value)}
+              style={inputStyle}
+            />
+
+            <button
+              onClick={runOneClickCompleteFlow}
+              disabled={completeFlowRunning}
+              style={completeFlowButtonStyle}
+            >
+              {completeFlowRunning ? "Running Complete Flow..." : "Run One Click Complete Flow"}
+            </button>
+
+            {completeFlowResult && (
+              <div style={innerPanelStyle}>
+                <p style={completeFlowResult.qa_passed ? successTextStyle : dangerTextStyle}>
+                  Status: {completeFlowResult.status || "attention_required"}
+                </p>
+
+                <p style={smallMutedStyle}>
+                  Generated file: {completeFlowResult.generated_frontend_file || "none"}
+                </p>
+
+                <p style={smallMutedStyle}>
+                  QA passed: {String(completeFlowResult.qa_passed)}
+                </p>
+
+                <div style={stepsListStyle}>
+                  {(completeFlowResult.steps || []).map((step: any, index: number) => (
+                    <div key={index} style={stepCardStyle}>
+                      <div style={{ fontWeight: 900 }}>{step.step}</div>
+                      <div style={smallMutedStyle}>
+                        OK: {String(step.ok)}
+                      </div>
+                      <div style={smallMutedStyle}>
+                        {step.message || "No message"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
           <section style={cardStyle}>
             <h2 style={sectionTitleStyle}>Run Full Chain</h2>
 
@@ -1064,5 +1166,25 @@ const handoffTextAreaStyle: CSSProperties = {
   color: "#cbd5e1",
   border: "1px solid #263044",
   fontSize: "12px"
+};
+
+
+
+const completeFlowCardStyle: CSSProperties = {
+  border: "1px solid #facc15",
+  borderRadius: "20px",
+  padding: "20px",
+  background: "#0f0a03"
+};
+
+const completeFlowButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "14px 18px",
+  borderRadius: "12px",
+  fontWeight: 900,
+  background: "#854d0e",
+  color: "white",
+  border: "1px solid #facc15",
+  width: "100%"
 };
 
