@@ -29,6 +29,8 @@ export default function AgentChainRunnerPage() {
   const [rollbackRunning, setRollbackRunning] = useState(false);
   const [registrySyncResult, setRegistrySyncResult] = useState<any>(null);
   const [registrySyncRunning, setRegistrySyncRunning] = useState(false);
+  const [projectBrainSyncResult, setProjectBrainSyncResult] = useState<any>(null);
+  const [projectBrainSyncRunning, setProjectBrainSyncRunning] = useState(false);
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -223,6 +225,42 @@ export default function AgentChainRunnerPage() {
   }
 
 
+
+
+  async function syncProjectBrain() {
+    setProjectBrainSyncRunning(true);
+    setMessage("");
+    setProjectBrainSyncResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/sync-project-brain`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          target_route: frontendRoute,
+          backend_route: backendRoute,
+          priority,
+          note: "Updated from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setProjectBrainSyncResult(data.sync);
+        setMessage(data.message || "Project Brain updated.");
+      } else {
+        setMessage(data.message || "Project Brain sync failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or Project Brain sync route not available.");
+    } finally {
+      setProjectBrainSyncRunning(false);
+    }
+  }
 
   async function syncFeatureRegistry() {
     setRegistrySyncRunning(true);
@@ -498,6 +536,32 @@ export default function AgentChainRunnerPage() {
             )}
           </section>
 
+
+
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Project Brain Sync</h2>
+
+            <p style={mutedTextStyle}>
+              Save this chain result into Project Brain and Long Memory so new chats understand the latest project state.
+            </p>
+
+            <button
+              onClick={syncProjectBrain}
+              disabled={projectBrainSyncRunning}
+              style={projectBrainButtonStyle}
+            >
+              {projectBrainSyncRunning ? "Updating Project Brain..." : "Update Project Brain"}
+            </button>
+
+            {projectBrainSyncResult && (
+              <div style={innerPanelStyle}>
+                <p style={successTextStyle}>Project Brain Updated</p>
+                <p style={smallMutedStyle}>Feature: {projectBrainSyncResult.feature_name}</p>
+                <p style={smallMutedStyle}>Route: /{projectBrainSyncResult.target_route}</p>
+                <p style={smallMutedStyle}>Synced: {projectBrainSyncResult.synced_at}</p>
+              </div>
+            )}
+          </section>
 
           <section style={cardStyle}>
             <h2 style={sectionTitleStyle}>Feature Registry Sync</h2>
@@ -860,6 +924,19 @@ const registryButtonStyle: CSSProperties = {
   background: "#164e63",
   color: "white",
   border: "1px solid #67e8f9",
+  width: "100%"
+};
+
+
+
+const projectBrainButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#312e81",
+  color: "white",
+  border: "1px solid #a5b4fc",
   width: "100%"
 };
 
