@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
@@ -14,13 +15,26 @@ export default function AgentChainRunnerPage() {
   const [frontendRoute, setFrontendRoute] = useState("one-click-feature");
   const [backendRoute, setBackendRoute] = useState("one-click-feature-api");
   const [runQa, setRunQa] = useState(true);
+
   const [history, setHistory] = useState<any[]>([]);
   const [selectedRun, setSelectedRun] = useState<any>(null);
   const [latestFrontendFile, setLatestFrontendFile] = useState("");
+
   const [installPreview, setInstallPreview] = useState<any>(null);
   const [approvalText, setApprovalText] = useState("");
+  const [installQaResult, setInstallQaResult] = useState<any>(null);
+  const [installQaRunning, setInstallQaRunning] = useState(false);
+
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
+
+  function findFrontendFile(run: any) {
+    if (!run || !run.steps) return "";
+    const found = run.steps.find((step: any) =>
+      String(step.file || "").endsWith(".tsx")
+    );
+    return found?.file || "";
+  }
 
   async function loadHistory() {
     try {
@@ -37,50 +51,6 @@ export default function AgentChainRunnerPage() {
     }
   }
 
-  async function runChain() {
-    setRunning(true);
-    setMessage("");
-    setSelectedRun(null);
-
-    try {
-      const res = await fetch(`${API_BASE}/agent-chain-runner/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          feature_name: featureName,
-          task,
-          priority,
-          style,
-          frontend_route: frontendRoute,
-          backend_route: backendRoute,
-          run_qa: runQa,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.ok) {
-        setMessage(data.approved ? "Agent chain completed and approved." : "Agent chain completed but not approved.");
-        setSelectedRun(data.run);
-        setLatestFrontendFile(findFrontendFile(data.run));
-        await loadHistory();
-      } else {
-        setMessage(data.message || "Agent chain failed.");
-      }
-    } catch (error) {
-      setMessage("Backend not running or chain runner route not available.");
-    } finally {
-      setRunning(false);
-    }
-  }
-
-
-  function findFrontendFile(run: any) {
-    if (!run || !run.steps) return "";
-    const found = run.steps.find((step: any) => String(step.file || "").endsWith(".tsx"));
-    return found?.file || "";
-  }
-
   async function loadLatestRun() {
     try {
       const res = await fetch(`${API_BASE}/agent-chain-runner/latest`);
@@ -93,13 +63,60 @@ export default function AgentChainRunnerPage() {
         }
       }
     } catch (error) {
-      // keep quiet because history still works
+      // Safe install bridge may not exist yet. Keep page usable.
+    }
+  }
+
+  async function runChain() {
+    setRunning(true);
+    setMessage("");
+    setSelectedRun(null);
+    setInstallPreview(null);
+    setInstallQaResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          task,
+          priority,
+          style,
+          frontend_route: frontendRoute,
+          backend_route: backendRoute,
+          run_qa: runQa
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        const generatedFile = findFrontendFile(data.run);
+        setMessage(
+          data.approved
+            ? "Agent chain completed and approved."
+            : "Agent chain completed but not approved."
+        );
+        setSelectedRun(data.run);
+        setLatestFrontendFile(generatedFile);
+        await loadHistory();
+      } else {
+        setMessage(data.message || "Agent chain failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or chain runner route not available.");
+    } finally {
+      setRunning(false);
     }
   }
 
   async function previewSafeInstall() {
     setMessage("");
     setInstallPreview(null);
+    setInstallQaResult(null);
 
     const fileName = latestFrontendFile || findFrontendFile(selectedRun);
 
@@ -111,11 +128,13 @@ export default function AgentChainRunnerPage() {
     try {
       const res = await fetch(`${API_BASE}/agent-chain-runner/safe-install-preview`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           file_name: fileName,
-          target_route: frontendRoute,
-        }),
+          target_route: frontendRoute
+        })
       });
 
       const data = await res.json();
@@ -133,6 +152,7 @@ export default function AgentChainRunnerPage() {
 
   async function approveSafeInstall() {
     setMessage("");
+    setInstallQaResult(null);
 
     if (!installPreview) {
       setMessage("Create preview first.");
@@ -142,18 +162,20 @@ export default function AgentChainRunnerPage() {
     try {
       const res = await fetch(`${API_BASE}/agent-chain-runner/safe-install-approve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           file_name: installPreview.source_file,
           target_route: installPreview.target_route,
-          approval_text: approvalText,
-        }),
+          approval_text: approvalText
+        })
       });
 
       const data = await res.json();
 
       if (data.ok) {
-        setMessage("Chain generated page installed safely.");
+        setMessage("Chain generated page installed safely. Now run QA after install.");
         setApprovalText("");
       } else {
         setMessage(data.message || "Safe install approval failed.");
@@ -163,142 +185,241 @@ export default function AgentChainRunnerPage() {
     }
   }
 
+  async function runQaAfterInstall() {
+    setInstallQaRunning(true);
+    setMessage("");
+    setInstallQaResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/qa-after-install`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          target_route: frontendRoute,
+          note: "QA after Agent Chain safe install"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setInstallQaResult(data.result);
+        setMessage(data.message || "QA after install finished.");
+      } else {
+        setMessage(data.message || "QA after install failed.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or QA after install route not available.");
+    } finally {
+      setInstallQaRunning(false);
+    }
+  }
+
   useEffect(() => {
     loadHistory();
     loadLatestRun();
   }, []);
 
   return (
-    <main style={{ minHeight: "100vh", background: "#050816", color: "white", padding: "32px" }}>
-      <section style={{ border: "1px solid #263044", borderRadius: "24px", padding: "24px", marginBottom: "24px" }}>
-        <p style={{ color: "#38bdf8", fontWeight: 800, letterSpacing: "2px", fontSize: "12px" }}>
-          AGENT CHAIN RUNNER V1
-        </p>
+    <main style={pageStyle}>
+      <section style={heroStyle}>
+        <p style={eyebrowStyle}>AGENT CHAIN RUNNER V1</p>
 
-        <h1 style={{ fontSize: "32px", fontWeight: 900, marginTop: "8px" }}>
-          One Click AI Software Factory
-        </h1>
+        <h1 style={titleStyle}>One Click AI Software Factory</h1>
 
-        <p style={{ color: "#94a3b8", marginTop: "8px" }}>
-          Run PM, UI/UX, Frontend, Backend, QA, and Reviewer agents in one flow.
+        <p style={mutedTextStyle}>
+          Run PM, UI/UX, Frontend, Backend, QA, Reviewer, safe install, and post-install QA from one page.
         </p>
       </section>
 
       {message && (
-        <section style={{ border: "1px solid #0e7490", borderRadius: "16px", padding: "16px", marginBottom: "24px", color: "#a5f3fc" }}>
+        <section style={messageStyle}>
           {message}
         </section>
       )}
 
-      <section style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: "24px" }}>
-        <div style={{ display: "grid", gap: "24px", alignContent: "start" }}>
-          <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Run Full Chain</h2>
+      <section style={gridStyle}>
+        <div style={leftColumnStyle}>
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Run Full Chain</h2>
 
             <label style={labelStyle}>Feature name</label>
-            <input value={featureName} onChange={(e) => setFeatureName(e.target.value)} style={inputStyle} />
+            <input
+              value={featureName}
+              onChange={(event) => setFeatureName(event.target.value)}
+              style={inputStyle}
+            />
 
             <label style={labelStyle}>Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value)} style={inputStyle}>
+            <select
+              value={priority}
+              onChange={(event) => setPriority(event.target.value)}
+              style={inputStyle}
+            >
               <option>High</option>
               <option>Medium</option>
               <option>Low</option>
             </select>
 
             <label style={labelStyle}>UI style</label>
-            <input value={style} onChange={(e) => setStyle(e.target.value)} style={inputStyle} />
+            <input
+              value={style}
+              onChange={(event) => setStyle(event.target.value)}
+              style={inputStyle}
+            />
 
             <label style={labelStyle}>Frontend route</label>
-            <input value={frontendRoute} onChange={(e) => setFrontendRoute(e.target.value)} style={inputStyle} />
+            <input
+              value={frontendRoute}
+              onChange={(event) => setFrontendRoute(event.target.value)}
+              style={inputStyle}
+            />
 
             <label style={labelStyle}>Backend route</label>
-            <input value={backendRoute} onChange={(e) => setBackendRoute(e.target.value)} style={inputStyle} />
+            <input
+              value={backendRoute}
+              onChange={(event) => setBackendRoute(event.target.value)}
+              style={inputStyle}
+            />
 
             <label style={labelStyle}>Task</label>
-            <textarea value={task} onChange={(e) => setTask(e.target.value)} rows={6} style={inputStyle} />
+            <textarea
+              value={task}
+              onChange={(event) => setTask(event.target.value)}
+              rows={6}
+              style={inputStyle}
+            />
 
-            <label style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "16px", color: "#cbd5e1" }}>
-              <input type="checkbox" checked={runQa} onChange={(e) => setRunQa(e.target.checked)} />
-              Run QA checks
+            <label style={checkboxLabelStyle}>
+              <input
+                type="checkbox"
+                checked={runQa}
+                onChange={(event) => setRunQa(event.target.checked)}
+              />
+              Run QA checks during chain
             </label>
 
             <button
               onClick={runChain}
               disabled={running}
-              style={{ marginTop: "18px", padding: "14px 18px", borderRadius: "12px", fontWeight: 900, background: "#1e3a8a", color: "white", border: "1px solid #60a5fa", width: "100%" }}
+              style={primaryButtonStyle}
             >
               {running ? "Running Full Chain..." : "Run Full Agent Chain"}
             </button>
           </section>
 
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Safe Install Latest Frontend Draft</h2>
 
-          <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Safe Install Latest Frontend Draft</h2>
-
-            <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+            <p style={mutedTextStyle}>
               Generated file: {latestFrontendFile || findFrontendFile(selectedRun) || "No generated .tsx file yet"}
             </p>
 
-            <p style={{ color: "#94a3b8", marginTop: "8px" }}>
+            <p style={mutedTextStyle}>
               Target route: /{frontendRoute}
             </p>
 
             <button
               onClick={previewSafeInstall}
-              style={{ marginTop: "14px", padding: "12px 14px", borderRadius: "10px", fontWeight: 900, background: "#1e3a8a", color: "white", border: "1px solid #60a5fa", width: "100%" }}
+              style={primaryButtonStyle}
             >
               Preview Safe Install
             </button>
 
             {installPreview && (
-              <div style={{ marginTop: "16px", border: "1px solid #263044", borderRadius: "14px", padding: "14px", background: "#020617" }}>
-                <p style={{ color: "#86efac", fontWeight: 900 }}>Preview Ready</p>
-                <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+              <div style={innerPanelStyle}>
+                <p style={successTextStyle}>Preview Ready</p>
+
+                <p style={smallMutedStyle}>
                   Target: {installPreview.target_path}
                 </p>
-                <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "6px" }}>
+
+                <p style={smallMutedStyle}>
                   Old lines: {installPreview.preview?.old_line_count} ? New lines: {installPreview.preview?.new_line_count}
                 </p>
 
-                <label style={{ display: "block", marginTop: "12px", color: "#94a3b8" }}>
-                  Type APPROVE CHAIN INSTALL
-                </label>
+                <label style={labelStyle}>Type APPROVE CHAIN INSTALL</label>
 
                 <input
                   value={approvalText}
-                  onChange={(e) => setApprovalText(e.target.value)}
+                  onChange={(event) => setApprovalText(event.target.value)}
                   style={inputStyle}
                 />
 
                 <button
                   onClick={approveSafeInstall}
-                  style={{ marginTop: "12px", padding: "12px 14px", borderRadius: "10px", fontWeight: 900, background: "#14532d", color: "white", border: "1px solid #86efac", width: "100%" }}
+                  style={approveButtonStyle}
                 >
                   Approve Install
                 </button>
+
+                <button
+                  onClick={runQaAfterInstall}
+                  disabled={installQaRunning}
+                  style={qaButtonStyle}
+                >
+                  {installQaRunning ? "Running QA..." : "Run QA After Install"}
+                </button>
+
+                {installQaResult && (
+                  <div style={qaResultStyle}>
+                    <p style={{
+                      color: installQaResult.passed ? "#86efac" : "#fca5a5",
+                      fontWeight: 900
+                    }}>
+                      QA Status: {installQaResult.status?.toUpperCase()}
+                    </p>
+
+                    <p style={smallMutedStyle}>
+                      Backend: {installQaResult.backend?.ok ? "passed" : "failed"} ? Frontend: {installQaResult.frontend?.ok ? "passed" : "failed"}
+                    </p>
+
+                    {!installQaResult.passed && (
+                      <pre style={errorPreStyle}>
+                        {installQaResult.backend?.stderr || installQaResult.frontend?.stderr || "No error details."}
+                      </pre>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </section>
 
-          <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
-              <h2 style={{ fontSize: "22px", fontWeight: 800 }}>History</h2>
-              <button onClick={loadHistory} style={{ padding: "10px 12px", borderRadius: "10px" }}>
+          <section style={cardStyle}>
+            <div style={historyHeaderStyle}>
+              <h2 style={sectionTitleStyle}>History</h2>
+
+              <button
+                onClick={loadHistory}
+                style={smallButtonStyle}
+              >
                 Refresh
               </button>
             </div>
 
-            <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
-              {history.length === 0 && <p style={{ color: "#94a3b8" }}>No chain runs yet.</p>}
+            <div style={historyListStyle}>
+              {history.length === 0 && (
+                <p style={mutedTextStyle}>No chain runs yet.</p>
+              )}
 
               {history.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => setSelectedRun(item)}
-                  style={{ textAlign: "left", padding: "14px", borderRadius: "14px", border: "1px solid #263044", background: "#0b1020", color: "white" }}
+                  onClick={() => {
+                    setSelectedRun(item);
+                    setLatestFrontendFile(findFrontendFile(item));
+                  }}
+                  style={historyItemStyle}
                 >
                   <div style={{ fontWeight: 900 }}>{item.feature_name}</div>
-                  <div style={{ color: item.status === "approved" ? "#86efac" : "#fca5a5", fontSize: "12px", marginTop: "4px" }}>
+
+                  <div style={{
+                    color: item.status === "approved" ? "#86efac" : "#fca5a5",
+                    fontSize: "12px",
+                    marginTop: "4px"
+                  }}>
                     {item.status} ? {item.created_at}
                   </div>
                 </button>
@@ -307,35 +428,43 @@ export default function AgentChainRunnerPage() {
           </section>
         </div>
 
-        <section style={{ border: "1px solid #263044", borderRadius: "20px", padding: "20px" }}>
-          <h2 style={{ fontSize: "22px", fontWeight: 800 }}>Run Details</h2>
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>Run Details</h2>
 
           {!selectedRun && (
-            <p style={{ color: "#94a3b8", marginTop: "14px" }}>
+            <p style={mutedTextStyle}>
               Run the chain or select a previous run.
             </p>
           )}
 
           {selectedRun && (
             <div style={{ marginTop: "16px" }}>
-              <div style={{ border: "1px solid #263044", borderRadius: "16px", padding: "16px", background: "#0b1020" }}>
-                <h3 style={{ fontSize: "22px", fontWeight: 900 }}>{selectedRun.feature_name}</h3>
-                <p style={{ color: "#94a3b8", marginTop: "8px" }}>{selectedRun.task}</p>
-                <p style={{ marginTop: "10px", color: selectedRun.status === "approved" ? "#86efac" : "#fca5a5", fontWeight: 900 }}>
+              <div style={innerPanelStyle}>
+                <h3 style={detailTitleStyle}>{selectedRun.feature_name}</h3>
+
+                <p style={mutedTextStyle}>{selectedRun.task}</p>
+
+                <p style={{
+                  marginTop: "10px",
+                  color: selectedRun.status === "approved" ? "#86efac" : "#fca5a5",
+                  fontWeight: 900
+                }}>
                   {selectedRun.status?.toUpperCase()}
                 </p>
               </div>
 
-              <h3 style={{ fontSize: "18px", fontWeight: 900, marginTop: "22px" }}>Steps</h3>
+              <h3 style={subTitleStyle}>Steps</h3>
 
-              <div style={{ display: "grid", gap: "12px", marginTop: "12px" }}>
+              <div style={stepsListStyle}>
                 {(selectedRun.steps || []).map((step: any, index: number) => (
-                  <div key={index} style={{ border: "1px solid #263044", borderRadius: "14px", padding: "14px", background: "#020617" }}>
+                  <div key={index} style={stepCardStyle}>
                     <div style={{ fontWeight: 900 }}>{step.agent}</div>
-                    <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+
+                    <div style={smallMutedStyle}>
                       Status: {step.status}
                     </div>
-                    <div style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>
+
+                    <div style={smallMutedStyle}>
                       File: {step.file}
                     </div>
                   </div>
@@ -349,18 +478,210 @@ export default function AgentChainRunnerPage() {
   );
 }
 
-const inputStyle = {
+const pageStyle: CSSProperties = {
+  minHeight: "100vh",
+  background: "#050816",
+  color: "white",
+  padding: "32px"
+};
+
+const heroStyle: CSSProperties = {
+  border: "1px solid #263044",
+  borderRadius: "24px",
+  padding: "24px",
+  marginBottom: "24px"
+};
+
+const eyebrowStyle: CSSProperties = {
+  color: "#38bdf8",
+  fontWeight: 800,
+  letterSpacing: "2px",
+  fontSize: "12px"
+};
+
+const titleStyle: CSSProperties = {
+  fontSize: "32px",
+  fontWeight: 900,
+  marginTop: "8px"
+};
+
+const mutedTextStyle: CSSProperties = {
+  color: "#94a3b8",
+  marginTop: "8px"
+};
+
+const messageStyle: CSSProperties = {
+  border: "1px solid #0e7490",
+  borderRadius: "16px",
+  padding: "16px",
+  marginBottom: "24px",
+  color: "#a5f3fc"
+};
+
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "420px 1fr",
+  gap: "24px"
+};
+
+const leftColumnStyle: CSSProperties = {
+  display: "grid",
+  gap: "24px",
+  alignContent: "start"
+};
+
+const cardStyle: CSSProperties = {
+  border: "1px solid #263044",
+  borderRadius: "20px",
+  padding: "20px"
+};
+
+const sectionTitleStyle: CSSProperties = {
+  fontSize: "22px",
+  fontWeight: 800
+};
+
+const labelStyle: CSSProperties = {
+  display: "block",
+  marginTop: "16px",
+  color: "#94a3b8"
+};
+
+const inputStyle: CSSProperties = {
   width: "100%",
   padding: "12px",
   marginTop: "6px",
   borderRadius: "10px",
   background: "#020617",
   color: "white",
-  border: "1px solid #263044",
-} as React.CSSProperties;
+  border: "1px solid #263044"
+};
 
-const labelStyle = {
-  display: "block",
+const checkboxLabelStyle: CSSProperties = {
+  display: "flex",
+  gap: "10px",
+  alignItems: "center",
   marginTop: "16px",
+  color: "#cbd5e1"
+};
+
+const primaryButtonStyle: CSSProperties = {
+  marginTop: "18px",
+  padding: "14px 18px",
+  borderRadius: "12px",
+  fontWeight: 900,
+  background: "#1e3a8a",
+  color: "white",
+  border: "1px solid #60a5fa",
+  width: "100%"
+};
+
+const approveButtonStyle: CSSProperties = {
+  marginTop: "12px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#14532d",
+  color: "white",
+  border: "1px solid #86efac",
+  width: "100%"
+};
+
+const qaButtonStyle: CSSProperties = {
+  marginTop: "12px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  fontWeight: 900,
+  background: "#581c87",
+  color: "white",
+  border: "1px solid #c084fc",
+  width: "100%"
+};
+
+const innerPanelStyle: CSSProperties = {
+  marginTop: "16px",
+  border: "1px solid #263044",
+  borderRadius: "14px",
+  padding: "14px",
+  background: "#020617"
+};
+
+const successTextStyle: CSSProperties = {
+  color: "#86efac",
+  fontWeight: 900
+};
+
+const smallMutedStyle: CSSProperties = {
   color: "#94a3b8",
-} as React.CSSProperties;
+  fontSize: "12px",
+  marginTop: "6px"
+};
+
+const qaResultStyle: CSSProperties = {
+  marginTop: "12px",
+  border: "1px solid #263044",
+  borderRadius: "12px",
+  padding: "12px",
+  background: "#0b1020"
+};
+
+const errorPreStyle: CSSProperties = {
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  marginTop: "10px",
+  color: "#fca5a5",
+  fontSize: "11px",
+  maxHeight: "180px",
+  overflow: "auto"
+};
+
+const historyHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "12px",
+  alignItems: "center"
+};
+
+const smallButtonStyle: CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "10px"
+};
+
+const historyListStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  marginTop: "16px"
+};
+
+const historyItemStyle: CSSProperties = {
+  textAlign: "left",
+  padding: "14px",
+  borderRadius: "14px",
+  border: "1px solid #263044",
+  background: "#0b1020",
+  color: "white"
+};
+
+const detailTitleStyle: CSSProperties = {
+  fontSize: "22px",
+  fontWeight: 900
+};
+
+const subTitleStyle: CSSProperties = {
+  fontSize: "18px",
+  fontWeight: 900,
+  marginTop: "22px"
+};
+
+const stepsListStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  marginTop: "12px"
+};
+
+const stepCardStyle: CSSProperties = {
+  border: "1px solid #263044",
+  borderRadius: "14px",
+  padding: "14px",
+  background: "#020617"
+};
