@@ -42,9 +42,19 @@ export default function AgentChainRunnerPage() {
   const [liveTimeline, setLiveTimeline] = useState<any[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineGeneratedAt, setTimelineGeneratedAt] = useState("");
+  const [runLockStatus, setRunLockStatus] = useState<any>(null);
+  const [lockedFlowApproval, setLockedFlowApproval] = useState("");
+  const [lockedFlowRunning, setLockedFlowRunning] = useState(false);
+  const [lockedFlowResult, setLockedFlowResult] = useState<any>(null);
+  const [clearLockText, setClearLockText] = useState("");
   const [liveTimeline, setLiveTimeline] = useState<any[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineGeneratedAt, setTimelineGeneratedAt] = useState("");
+  const [runLockStatus, setRunLockStatus] = useState<any>(null);
+  const [lockedFlowApproval, setLockedFlowApproval] = useState("");
+  const [lockedFlowRunning, setLockedFlowRunning] = useState(false);
+  const [lockedFlowResult, setLockedFlowResult] = useState<any>(null);
+  const [clearLockText, setClearLockText] = useState("");
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -244,6 +254,98 @@ export default function AgentChainRunnerPage() {
 
 
 
+
+
+  async function loadRunLockStatus() {
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/run-lock-status`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setRunLockStatus(data);
+      }
+    } catch (error) {
+      // keep quiet
+    }
+  }
+
+  async function runLockedSafeFlow() {
+    setLockedFlowRunning(true);
+    setMessage("");
+    setLockedFlowResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/complete-flow-safe-locked`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          feature_name: featureName,
+          task,
+          priority,
+          style,
+          frontend_route: frontendRoute,
+          backend_route: backendRoute,
+          approval_text: lockedFlowApproval,
+          run_chain_qa: false,
+          auto_rollback_on_qa_fail: true,
+          note: "Started from locked safe flow UI"
+        })
+      });
+
+      const data = await res.json();
+
+      setLockedFlowResult(data);
+
+      if (data.ok) {
+        setMessage(data.message || "Locked safe flow finished.");
+        const flow = data.result?.flow || data.result?.result?.flow;
+        if (flow) {
+          setSelectedRun(flow);
+          setLatestFrontendFile(flow.generated_frontend_file || "");
+        }
+      } else {
+        setMessage(data.message || "Locked safe flow failed.");
+      }
+
+      await loadRunLockStatus();
+      await loadLiveTimeline();
+    } catch (error) {
+      setMessage("Backend not running or locked safe flow route not available.");
+    } finally {
+      setLockedFlowRunning(false);
+    }
+  }
+
+  async function clearRunLock() {
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/clear-run-lock`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          approval_text: clearLockText,
+          reason: "Cleared from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage(data.message || "Run lock cleared.");
+        setClearLockText("");
+        await loadRunLockStatus();
+      } else {
+        setMessage(data.message || "Could not clear run lock.");
+      }
+    } catch (error) {
+      setMessage("Backend not running or clear run lock route not available.");
+    }
+  }
 
   async function loadLiveTimeline() {
     setTimelineLoading(true);
@@ -508,9 +610,12 @@ export default function AgentChainRunnerPage() {
     loadHistory();
     loadLatestRun();
     loadLiveTimeline();
+    loadRunLockStatus();
 
     const timer = window.setInterval(() => {
       loadLiveTimeline();
+      loadRunLockStatus();
+    loadRunLockStatus();
     }, 5000);
 
     return () => window.clearInterval(timer);
@@ -534,6 +639,79 @@ export default function AgentChainRunnerPage() {
         </section>
       )}
 
+
+
+      <section style={runLockPanelStyle}>
+        <div style={timelineHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>RUN SAFETY</p>
+            <h2 style={sectionTitleStyle}>Run Lock / Duplicate Click Protection</h2>
+            <p style={smallMutedStyle}>
+              Status: {runLockStatus?.locked ? "LOCKED - flow running" : "UNLOCKED - ready"}
+            </p>
+          </div>
+
+          <button
+            onClick={loadRunLockStatus}
+            style={smallButtonStyle}
+          >
+            Check Lock
+          </button>
+        </div>
+
+        {runLockStatus?.locked && (
+          <div style={innerPanelStyle}>
+            <p style={dangerTextStyle}>A chain flow is already running.</p>
+            <p style={smallMutedStyle}>Feature: {runLockStatus.lock?.feature_name}</p>
+            <p style={smallMutedStyle}>Started: {runLockStatus.lock?.started_at}</p>
+
+            <label style={labelStyle}>Type CLEAR RUN LOCK only if it is stuck</label>
+            <input
+              value={clearLockText}
+              onChange={(event) => setClearLockText(event.target.value)}
+              style={inputStyle}
+            />
+
+            <button
+              onClick={clearRunLock}
+              style={rollbackButtonStyle}
+            >
+              Clear Run Lock
+            </button>
+          </div>
+        )}
+
+        <div style={innerPanelStyle}>
+          <p style={successTextStyle}>Locked Safe Flow</p>
+          <p style={smallMutedStyle}>
+            This is the safest button. It blocks duplicate runs while the flow is active.
+          </p>
+
+          <label style={labelStyle}>Type APPROVE SAFE FULL FLOW</label>
+          <input
+            value={lockedFlowApproval}
+            onChange={(event) => setLockedFlowApproval(event.target.value)}
+            style={inputStyle}
+          />
+
+          <button
+            onClick={runLockedSafeFlow}
+            disabled={lockedFlowRunning || runLockStatus?.locked}
+            style={lockedFlowButtonStyle}
+          >
+            {lockedFlowRunning ? "Running Locked Safe Flow..." : "Run Locked Safe Flow"}
+          </button>
+
+          {lockedFlowResult && (
+            <div style={qaResultStyle}>
+              <p style={lockedFlowResult.ok ? successTextStyle : dangerTextStyle}>
+                Result: {lockedFlowResult.ok ? "OK" : "FAILED"}
+              </p>
+              <p style={smallMutedStyle}>{lockedFlowResult.message}</p>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section style={timelinePanelStyle}>
         <div style={timelineHeaderStyle}>
@@ -1452,5 +1630,26 @@ const timelineMessageStyle: CSSProperties = {
   color: "#cbd5e1",
   marginTop: "6px",
   fontSize: "13px"
+};
+
+
+
+const runLockPanelStyle: CSSProperties = {
+  border: "1px solid #22c55e",
+  borderRadius: "20px",
+  padding: "20px",
+  marginBottom: "24px",
+  background: "#03120a"
+};
+
+const lockedFlowButtonStyle: CSSProperties = {
+  marginTop: "14px",
+  padding: "14px 18px",
+  borderRadius: "12px",
+  fontWeight: 900,
+  background: "#166534",
+  color: "white",
+  border: "1px solid #86efac",
+  width: "100%"
 };
 
