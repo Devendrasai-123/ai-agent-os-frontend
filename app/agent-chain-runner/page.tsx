@@ -39,6 +39,9 @@ export default function AgentChainRunnerPage() {
   const [safeFlowApproval, setSafeFlowApproval] = useState("");
   const [safeFlowRunning, setSafeFlowRunning] = useState(false);
   const [safeFlowResult, setSafeFlowResult] = useState<any>(null);
+  const [liveTimeline, setLiveTimeline] = useState<any[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineGeneratedAt, setTimelineGeneratedAt] = useState("");
 
   const [message, setMessage] = useState("");
   const [running, setRunning] = useState(false);
@@ -237,6 +240,25 @@ export default function AgentChainRunnerPage() {
 
 
 
+
+
+  async function loadLiveTimeline() {
+    setTimelineLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/live-timeline`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setLiveTimeline(data.events || []);
+        setTimelineGeneratedAt(data.generated_at || "");
+      }
+    } catch (error) {
+      // Keep quiet. Main page should still work.
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
 
   async function runSafeCompleteFlow() {
     setSafeFlowRunning(true);
@@ -482,6 +504,13 @@ export default function AgentChainRunnerPage() {
   useEffect(() => {
     loadHistory();
     loadLatestRun();
+    loadLiveTimeline();
+
+    const timer = window.setInterval(() => {
+      loadLiveTimeline();
+    }, 5000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   return (
@@ -501,6 +530,53 @@ export default function AgentChainRunnerPage() {
           {message}
         </section>
       )}
+
+
+      <section style={timelinePanelStyle}>
+        <div style={timelineHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>LIVE PROGRESS</p>
+            <h2 style={sectionTitleStyle}>Agent Chain Timeline</h2>
+            <p style={smallMutedStyle}>
+              Auto-refreshes every 5 seconds. Last refresh: {timelineGeneratedAt || "not loaded"}
+            </p>
+          </div>
+
+          <button
+            onClick={loadLiveTimeline}
+            style={smallButtonStyle}
+          >
+            {timelineLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        <div style={timelineListStyle}>
+          {liveTimeline.length === 0 && (
+            <p style={mutedTextStyle}>No timeline events yet. Run a chain flow first.</p>
+          )}
+
+          {liveTimeline.slice(0, 12).map((event, index) => (
+            <div key={index} style={timelineItemStyle}>
+              <div style={timelineDotStyle} />
+
+              <div style={{ flex: 1 }}>
+                <div style={timelineTitleRowStyle}>
+                  <strong>{event.title}</strong>
+                  <span style={timelineBadgeStyle}>{event.status}</span>
+                </div>
+
+                <p style={smallMutedStyle}>
+                  {event.created_at} ? {event.source}
+                </p>
+
+                {event.message && (
+                  <p style={timelineMessageStyle}>{event.message}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section style={gridStyle}>
         <div style={leftColumnStyle}>
@@ -1309,5 +1385,69 @@ const safeFlowButtonStyle: CSSProperties = {
   color: "white",
   border: "1px solid #86efac",
   width: "100%"
+};
+
+
+
+const timelinePanelStyle: CSSProperties = {
+  border: "1px solid #263044",
+  borderRadius: "20px",
+  padding: "20px",
+  marginBottom: "24px",
+  background: "#07111f"
+};
+
+const timelineHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "16px",
+  alignItems: "center"
+};
+
+const timelineListStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  marginTop: "16px"
+};
+
+const timelineItemStyle: CSSProperties = {
+  display: "flex",
+  gap: "12px",
+  alignItems: "flex-start",
+  border: "1px solid #263044",
+  borderRadius: "14px",
+  padding: "12px",
+  background: "#020617"
+};
+
+const timelineDotStyle: CSSProperties = {
+  width: "10px",
+  height: "10px",
+  borderRadius: "999px",
+  background: "#38bdf8",
+  marginTop: "5px",
+  flexShrink: 0
+};
+
+const timelineTitleRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "12px",
+  alignItems: "center"
+};
+
+const timelineBadgeStyle: CSSProperties = {
+  fontSize: "11px",
+  padding: "4px 8px",
+  borderRadius: "999px",
+  background: "#0f172a",
+  color: "#cbd5e1",
+  border: "1px solid #263044"
+};
+
+const timelineMessageStyle: CSSProperties = {
+  color: "#cbd5e1",
+  marginTop: "6px",
+  fontSize: "13px"
 };
 
