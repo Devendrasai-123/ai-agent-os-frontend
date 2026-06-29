@@ -64,6 +64,10 @@ export default function AgentChainRunnerPage() {
   const [approvalNote, setApprovalNote] = useState("Review this action before executing.");
   const [approvalInputById, setApprovalInputById] = useState<Record<string, string>>({});
 
+  const [runReportResult, setRunReportResult] = useState<any>(null);
+  const [runReportRunning, setRunReportRunning] = useState(false);
+  const [runReportHistory, setRunReportHistory] = useState<any[]>([]);
+
   function findFrontendFile(run: any) {
     if (!run || !run.steps) return "";
     const found = run.steps.find((step: any) => String(step.file || "").endsWith(".tsx"));
@@ -106,6 +110,86 @@ export default function AgentChainRunnerPage() {
     }
   }
 
+
+
+  async function loadRunReportHistory() {
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/run-report/history`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setRunReportHistory(data.history || []);
+      }
+    } catch {
+      // keep quiet
+    }
+  }
+
+  async function generateRunReport() {
+    setRunReportRunning(true);
+    setMessage("");
+    setRunReportResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/run-report/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feature_name: featureName,
+          target_route: frontendRoute,
+          backend_route: backendRoute,
+          note: "Generated from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setRunReportResult(data);
+        setMessage(data.message || "Run report generated.");
+        await loadRunReportHistory();
+      } else {
+        setMessage(data.message || "Run report generation failed.");
+      }
+    } catch {
+      setMessage("Backend not running or run report route not available.");
+    } finally {
+      setRunReportRunning(false);
+    }
+  }
+
+  async function copyRunReport() {
+    if (!runReportResult?.report_text) {
+      setMessage("No report text to copy.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(runReportResult.report_text);
+      setMessage("Run report copied.");
+    } catch {
+      setMessage("Copy failed. Select the report manually.");
+    }
+  }
+
+  function downloadRunReport() {
+    if (!runReportResult?.report_text) {
+      setMessage("No report text to download.");
+      return;
+    }
+
+    const blob = new Blob([runReportResult.report_text], { type: "text/markdown" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = runReportResult.report?.file_name || "agent_chain_run_report.md";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  }
 
   async function loadApprovalCenter() {
     setApprovalLoading(true);
@@ -606,6 +690,7 @@ export default function AgentChainRunnerPage() {
     loadLiveTimeline();
     loadRunLockStatus();
     loadApprovalCenter();
+    loadRunReportHistory();
 
     const timer = window.setInterval(() => {
       loadLiveTimeline();
@@ -628,6 +713,59 @@ export default function AgentChainRunnerPage() {
 
       {message && <section style={messageStyle}>{message}</section>}
 
+
+
+      <section style={reportPanelStyle}>
+        <div style={rowStyle}>
+          <div>
+            <p style={eyebrowStyle}>RUN REPORT</p>
+            <h2 style={sectionTitleStyle}>Download Run Report</h2>
+            <p style={smallMutedStyle}>
+              Generate a clean Markdown report for the latest chain/safe-flow state.
+            </p>
+          </div>
+
+          <button onClick={generateRunReport} disabled={runReportRunning} style={smallButtonStyle}>
+            {runReportRunning ? "Generating..." : "Generate Report"}
+          </button>
+        </div>
+
+        {runReportResult && (
+          <div style={innerPanelStyle}>
+            <p style={successTextStyle}>Report Created</p>
+            <p style={smallMutedStyle}>File: {runReportResult.report?.file_name}</p>
+
+            <div style={reportButtonRowStyle}>
+              <button onClick={copyRunReport} style={smallButtonStyle}>
+                Copy Report
+              </button>
+
+              <button onClick={downloadRunReport} style={smallButtonStyle}>
+                Download .md
+              </button>
+            </div>
+
+            <textarea
+              value={runReportResult.report_text || ""}
+              readOnly
+              rows={10}
+              style={textAreaStyle}
+            />
+          </div>
+        )}
+
+        {runReportHistory.length > 0 && (
+          <div style={innerPanelStyle}>
+            <p style={successTextStyle}>Recent Reports</p>
+
+            {runReportHistory.slice(0, 5).map((report, index) => (
+              <p key={index} style={smallMutedStyle}>
+                {report.file_name} ? {report.created_at}
+              </p>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section style={approvalPanelStyle}>
         <div style={rowStyle}>
@@ -1041,5 +1179,23 @@ const approvalButtonRowStyle: CSSProperties = {
   gridTemplateColumns: "1fr 1fr",
   gap: "12px",
   marginTop: "12px"
+};
+
+
+
+const reportPanelStyle: CSSProperties = {
+  border: "1px solid #38bdf8",
+  borderRadius: "20px",
+  padding: "20px",
+  marginBottom: "24px",
+  background: "#03111c"
+};
+
+const reportButtonRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px",
+  marginTop: "12px",
+  marginBottom: "12px"
 };
 
