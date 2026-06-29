@@ -58,6 +58,12 @@ export default function AgentChainRunnerPage() {
   const [lockedFlowResult, setLockedFlowResult] = useState<any>(null);
   const [clearLockText, setClearLockText] = useState("");
 
+  const [approvalItems, setApprovalItems] = useState<any[]>([]);
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvalActionType, setApprovalActionType] = useState("safe_install");
+  const [approvalNote, setApprovalNote] = useState("Review this action before executing.");
+  const [approvalInputById, setApprovalInputById] = useState<Record<string, string>>({});
+
   function findFrontendFile(run: any) {
     if (!run || !run.steps) return "";
     const found = run.steps.find((step: any) => String(step.file || "").endsWith(".tsx"));
@@ -97,6 +103,116 @@ export default function AgentChainRunnerPage() {
     } catch {} 
     finally {
       setTimelineLoading(false);
+    }
+  }
+
+
+  async function loadApprovalCenter() {
+    setApprovalLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/approval-center`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setApprovalItems(data.items || []);
+      }
+    } catch {
+      // keep quiet
+    } finally {
+      setApprovalLoading(false);
+    }
+  }
+
+  async function createApprovalRequest() {
+    setMessage("");
+
+    try {
+      const fileName = latestFrontendFile || findFrontendFile(selectedRun);
+
+      const res = await fetch(`${API_BASE}/agent-chain-runner/approval-center/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: approvalActionType,
+          feature_name: featureName,
+          target_route: frontendRoute,
+          backend_route: backendRoute,
+          file_name: fileName,
+          task,
+          priority,
+          style,
+          note: approvalNote
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage("Approval request created.");
+        await loadApprovalCenter();
+      } else {
+        setMessage(data.message || "Could not create approval request.");
+      }
+    } catch {
+      setMessage("Backend not running or Approval Center create route not available.");
+    }
+  }
+
+  async function approveApprovalItem(item: any) {
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/approval-center/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approval_id: item.id,
+          approval_text: approvalInputById[item.id] || "",
+          execute: true
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage(data.message || "Approval executed.");
+      } else {
+        setMessage(data.message || "Approval failed.");
+      }
+
+      await loadApprovalCenter();
+      await loadLiveTimeline();
+      await loadRunLockStatus();
+    } catch {
+      setMessage("Backend not running or Approval Center approve route not available.");
+    }
+  }
+
+  async function rejectApprovalItem(item: any) {
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chain-runner/approval-center/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approval_id: item.id,
+          reason: "Rejected from Agent Chain Runner UI"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage(data.message || "Approval rejected.");
+      } else {
+        setMessage(data.message || "Reject failed.");
+      }
+
+      await loadApprovalCenter();
+    } catch {
+      setMessage("Backend not running or Approval Center reject route not available.");
     }
   }
 
@@ -489,10 +605,12 @@ export default function AgentChainRunnerPage() {
     loadLatestRun();
     loadLiveTimeline();
     loadRunLockStatus();
+    loadApprovalCenter();
 
     const timer = window.setInterval(() => {
       loadLiveTimeline();
       loadRunLockStatus();
+      loadApprovalCenter();
     }, 5000);
 
     return () => window.clearInterval(timer);
@@ -509,6 +627,110 @@ export default function AgentChainRunnerPage() {
       </section>
 
       {message && <section style={messageStyle}>{message}</section>}
+
+
+      <section style={approvalPanelStyle}>
+        <div style={rowStyle}>
+          <div>
+            <p style={eyebrowStyle}>APPROVAL CENTER</p>
+            <h2 style={sectionTitleStyle}>Dangerous Action Queue</h2>
+            <p style={smallMutedStyle}>
+              Create, approve, execute, or reject risky actions from one place.
+            </p>
+          </div>
+
+          <button onClick={loadApprovalCenter} style={smallButtonStyle}>
+            {approvalLoading ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+
+        <div style={innerPanelStyle}>
+          <label style={labelStyle}>Action type</label>
+          <select
+            value={approvalActionType}
+            onChange={(event) => setApprovalActionType(event.target.value)}
+            style={inputStyle}
+          >
+            <option value="safe_install">Safe Install</option>
+            <option value="rollback">Rollback Last Install</option>
+            <option value="clear_run_lock">Clear Run Lock</option>
+            <option value="locked_safe_flow">Locked Safe Full Flow</option>
+          </select>
+
+          <label style={labelStyle}>Approval note</label>
+          <input
+            value={approvalNote}
+            onChange={(event) => setApprovalNote(event.target.value)}
+            style={inputStyle}
+          />
+
+          <button onClick={createApprovalRequest} style={goldButtonStyle}>
+            Create Approval Request
+          </button>
+        </div>
+
+        <div style={approvalQueueStyle}>
+          {approvalItems.length === 0 && (
+            <p style={mutedTextStyle}>No approval items yet.</p>
+          )}
+
+          {approvalItems.slice(0, 10).map((item) => (
+            <div key={item.id} style={approvalItemStyle}>
+              <div style={rowStyle}>
+                <div>
+                  <strong>{item.label}</strong>
+                  <p style={smallMutedStyle}>
+                    {item.status} ? /{item.target_route} ? {item.created_at}
+                  </p>
+                  <p style={smallMutedStyle}>
+                    Required: {item.required_phrase}
+                  </p>
+                </div>
+
+                <span style={badgeStyle}>{item.status}</span>
+              </div>
+
+              {item.status === "pending" && (
+                <>
+                  <label style={labelStyle}>Approval text</label>
+                  <input
+                    value={approvalInputById[item.id] || ""}
+                    onChange={(event) =>
+                      setApprovalInputById({
+                        ...approvalInputById,
+                        [item.id]: event.target.value
+                      })
+                    }
+                    style={inputStyle}
+                  />
+
+                  <div style={approvalButtonRowStyle}>
+                    <button
+                      onClick={() => approveApprovalItem(item)}
+                      style={successButtonStyle}
+                    >
+                      Approve + Execute
+                    </button>
+
+                    <button
+                      onClick={() => rejectApprovalItem(item)}
+                      style={dangerButtonStyle}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {item.execution_result && (
+                <p style={item.execution_result.ok ? successTextStyle : dangerTextStyle}>
+                  Execution: {item.execution_result.message || String(item.execution_result.ok)}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section style={safeCardStyle}>
         <h2 style={sectionTitleStyle}>Run Lock / Safest Flow</h2>
@@ -791,3 +1013,33 @@ const stepsListStyle: CSSProperties = { display: "grid", gap: "12px", marginTop:
 const stepCardStyle: CSSProperties = { border: "1px solid #263044", borderRadius: "14px", padding: "14px", background: "#020617" };
 const historyListStyle: CSSProperties = { display: "grid", gap: "12px", marginTop: "16px" };
 const historyItemStyle: CSSProperties = { textAlign: "left", padding: "14px", borderRadius: "14px", border: "1px solid #263044", background: "#0b1020", color: "white" };
+
+
+const approvalPanelStyle: CSSProperties = {
+  border: "1px solid #f59e0b",
+  borderRadius: "20px",
+  padding: "20px",
+  marginBottom: "24px",
+  background: "#120a02"
+};
+
+const approvalQueueStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  marginTop: "16px"
+};
+
+const approvalItemStyle: CSSProperties = {
+  border: "1px solid #263044",
+  borderRadius: "14px",
+  padding: "14px",
+  background: "#020617"
+};
+
+const approvalButtonRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px",
+  marginTop: "12px"
+};
+
